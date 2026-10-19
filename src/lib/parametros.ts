@@ -21,11 +21,13 @@ function primeiro(busca: ParametrosDaUrl, ...chaves: string[]): string | undefin
   return undefined
 }
 
+// Aceita também os nomes do formulário do takeat.app (as propriedades do HubSpot): firstname,
+// phone, nome_do_restaurante — o site repassa as respostas como estão.
 export const leadDaUrl = (busca: ParametrosDaUrl): LeadInicial => ({
-  nome: primeiro(busca, 'name', 'nome'),
+  nome: primeiro(busca, 'name', 'nome', 'firstname'),
   email: primeiro(busca, 'email'),
   telefone: primeiro(busca, 'phone', 'telefone', 'whatsapp'),
-  empresa: primeiro(busca, 'empresa', 'restaurante', 'company'),
+  empresa: primeiro(busca, 'empresa', 'restaurante', 'nome_do_restaurante', 'company'),
 })
 
 export const origemDaUrl = (busca: ParametrosDaUrl): Origem => ({
@@ -41,3 +43,7 @@ export const origemDaUrl = (busca: ParametrosDaUrl): Origem => ({
 
 export const vendedorDaUrl = (busca: ParametrosDaUrl): string | null =>
   primeiro(busca, 'vendedor', 'seller') ?? null
+
+/** A resposta de faturamento do formulário do site (`faturamento_contato`) ou do link. */
+export const faturamentoDaUrl = (busca: ParametrosDaUrl): string | null =>
+  primeiro(busca, 'faturamento', 'faturamento_contato') ?? null

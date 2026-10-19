@@ -16,16 +16,20 @@ export const primeiroNome = (nome: string): string => limpar(nome).split(' ')[0]
 export const tituloDoConvite = (base: string, lead: Pick<DadosLead, 'empresa' | 'nome'>): string =>
   `${base} — ${limpar(lead.empresa) || limpar(lead.nome)}`.slice(0, 200)
 
-export function descricaoDoConvite(lead: DadosLead, vendedorNome: string, linkDeGestao?: string): string {
+export function descricaoDoConvite(
+  lead: DadosLead,
+  opcoes: { vendedor: string; linkDeGestao?: string; faturamento?: string | null },
+): string {
   const linhas = [
-    `Olá, ${primeiroNome(lead.nome)}! Esta é a sua demonstração da Takeat com ${vendedorNome}.`,
+    `Olá, ${primeiroNome(lead.nome)}! Esta é a sua demonstração da Takeat com ${opcoes.vendedor}.`,
     'No horário marcado, é só entrar pelo link do Google Meet deste convite.',
   ]
-  if (linkDeGestao) linhas.push('', `Precisa remarcar ou cancelar? ${linkDeGestao}`)
+  if (opcoes.linkDeGestao) linhas.push('', `Precisa remarcar ou cancelar? ${opcoes.linkDeGestao}`)
   linhas.push(
     '',
     '—',
     `Restaurante: ${limpar(lead.empresa)}`,
+    ...(opcoes.faturamento ? [`Faturamento mensal: ${opcoes.faturamento}`] : []),
     `Contato: ${limpar(lead.nome)}`,
     `WhatsApp: ${lead.telefone}`,
     `E-mail: ${lead.email}`,

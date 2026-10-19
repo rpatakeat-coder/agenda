@@ -49,3 +49,49 @@
   height: 1px;
   overflow: hidden;
 }
+
+/* Dados que já vieram do formulário do site: resumo em vez dos campos. */
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--canvas);
+}
+
+.resumo dl {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 12px 24px;
+  margin: 0;
+}
+
+@container (min-width: 560px) {
+  .resumo dl {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.resumo dt {
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.resumo dd {
+  margin: 2px 0 0;
+  color: var(--ink-900);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resumo :global(.botao) {
+  margin: -8px -8px 0 0;
+}

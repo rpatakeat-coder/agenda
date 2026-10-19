@@ -1,8 +1,10 @@
 // Horários livres da janela de agendamento, a partir do agenda-do-dia do OS (um pedido por dia).
 import 'server-only'
 
+import { VENDEDORES_POR_FAIXA } from '@/config/roteamento'
 import { type AgendaDoDia, type FiltroVendedores, resolverVendedor, vendedoresElegiveis } from '@/lib/agenda'
 import type { Disponibilidade } from '@/lib/contrato'
+import { type FaixaFaturamento, permitidosParaLead } from '@/lib/roteamento'
 import { calcularSlots, diasDaJanela, type SlotCalculado } from '@/lib/slots'
 import { dataBrasilia, isoBrasilia } from '@/lib/tempo'
 import { regrasDaAgenda, vendedoresPermitidos } from './config'
@@ -12,15 +14,31 @@ import { agendaDoDia } from './takeat-os'
 export interface OpcoesDeAgenda {
   /** Link direcionado: nome/slug ou e-mail do vendedor. */
   vendedor?: string | null
+  /** Faixa de faturamento do lead: decide quem pode recebê-lo (src/config/roteamento.ts). */
+  faixa?: FaixaFaturamento | null
+  /** Sem faixa com o roteamento ligado: erro (padrão) ou a roleta geral. */
+  semFaixa?: 'erro' | 'roleta'
   ignorar?: FiltroVendedores['ignorar']
 }
 
-/** O filtro do dia: link direcionado ignora AGENDA_VENDEDORES (a roleta), mas o vendedor tem de existir. */
+/**
+ * O filtro do dia. Sem link direcionado: os vendedores da faixa do lead (ou a roleta). Link
+ * direcionado: só aquele vendedor, que precisa existir — o SDR escolheu, não passa pelo roteamento.
+ */
 function filtroDoDia(
   agenda: AgendaDoDia,
   opcoes: OpcoesDeAgenda,
 ): FiltroVendedores & { nome: string | null } {
-  if (!opcoes.vendedor) return { permitidos: vendedoresPermitidos(), ignorar: opcoes.ignorar, nome: null }
+  if (!opcoes.vendedor) {
+    const permitidos = permitidosParaLead({
+      mapa: VENDEDORES_POR_FAIXA,
+      roleta: vendedoresPermitidos(),
+      faixa: opcoes.faixa,
+      semFaixa: opcoes.semFaixa,
+    })
+    if (permitidos === 'faturamento_obrigatorio') throw new ErroAgenda('faturamento_obrigatorio', 400)
+    return { permitidos, ignorar: opcoes.ignorar, nome: null }
+  }
   const achado = resolverVendedor(agenda.pessoas, opcoes.vendedor)
   if ('erro' in achado) throw new ErroAgenda('vendedor_nao_encontrado', 404)
   return { permitidos: [], vendedor: achado.pessoa.email, ignorar: opcoes.ignorar, nome: achado.pessoa.nome }

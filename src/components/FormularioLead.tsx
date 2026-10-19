@@ -1,9 +1,10 @@
 'use client'
 
-import { ArrowLeft, CircleAlert, LoaderCircle } from 'lucide-react'
-import { type FormEvent, useRef, useState } from 'react'
+import { ArrowLeft, CircleAlert, LoaderCircle, Pencil } from 'lucide-react'
+import { type SubmitEvent, useRef, useState } from 'react'
 import type { ReuniaoConfirmada, SlotPublico } from '@/lib/contrato'
 import type { LeadInicial } from '@/lib/parametros'
+import type { FaixaFaturamento } from '@/lib/roteamento'
 import { type CampoLead, dadosLeadSchema, type Origem } from '@/lib/schemas'
 import { mascararTelefone } from '@/lib/telefone'
 import s from './FormularioLead.module.css'
@@ -12,6 +13,8 @@ import { novaChave, postar } from './hooks'
 const CAMPOS: ReadonlyArray<{
   nome: CampoLead
   rotulo: string
+  /** Rótulo no resumo (quando os dados vieram do formulário do site). */
+  curto: string
   tipo: 'text' | 'email' | 'tel'
   autoComplete: string
   inputMode?: 'email' | 'tel'
@@ -20,6 +23,7 @@ const CAMPOS: ReadonlyArray<{
   {
     nome: 'nome',
     rotulo: 'Seu nome',
+    curto: 'Nome',
     tipo: 'text',
     autoComplete: 'name',
     placeholder: 'Como podemos te chamar?',
@@ -27,6 +31,7 @@ const CAMPOS: ReadonlyArray<{
   {
     nome: 'empresa',
     rotulo: 'Nome do restaurante',
+    curto: 'Restaurante',
     tipo: 'text',
     autoComplete: 'organization',
     placeholder: 'Ex.: Cantina da Praça',
@@ -34,6 +39,7 @@ const CAMPOS: ReadonlyArray<{
   {
     nome: 'email',
     rotulo: 'E-mail',
+    curto: 'E-mail',
     tipo: 'email',
     autoComplete: 'email',
     inputMode: 'email',
@@ -42,6 +48,7 @@ const CAMPOS: ReadonlyArray<{
   {
     nome: 'telefone',
     rotulo: 'WhatsApp',
+    curto: 'WhatsApp',
     tipo: 'tel',
     autoComplete: 'tel',
     inputMode: 'tel',
@@ -56,6 +63,7 @@ interface Props {
   slot: SlotPublico
   inicial: LeadInicial
   vendedor: string | null
+  faturamento: FaixaFaturamento | null
   origem: Origem
   onVoltar: () => void
   onConfirmada: (reuniao: ReuniaoConfirmada) => void
@@ -67,6 +75,7 @@ export function FormularioLead({
   slot,
   inicial,
   vendedor,
+  faturamento,
   origem,
   onVoltar,
   onConfirmada,
@@ -78,6 +87,8 @@ export function FormularioLead({
     email: inicial.email ?? '',
     telefone: inicial.telefone ? mascararTelefone(inicial.telefone) : '',
   })
+  // Dados completos vindos do formulário do site: o lead só confirma, sem digitar de novo.
+  const [editando, setEditando] = useState(() => !dadosLeadSchema.safeParse(valores).success)
   const [erros, setErros] = useState<Erros>({})
   const [erroGeral, setErroGeral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -91,7 +102,7 @@ export function FormularioLead({
     if (erros[campo]) setErros((e) => ({ ...e, [campo]: undefined }))
   }
 
-  async function enviar(evento: FormEvent<HTMLFormElement>) {
+  async function enviar(evento: SubmitEvent<HTMLFormElement>) {
     evento.preventDefault()
     if (enviando) return
     const lido = dadosLeadSchema.safeParse(valores)
@@ -115,6 +126,7 @@ export function FormularioLead({
         ...lido.data,
         inicio: slot.inicio,
         vendedor: vendedor ?? undefined,
+        faturamento: faturamento ?? undefined,
         origem,
         site: armadilha.current?.value || undefined,
       },
@@ -123,7 +135,10 @@ export function FormularioLead({
     setEnviando(false)
     if (resposta.ok) return onConfirmada(resposta.reuniao)
     if (resposta.erro === 'horario_indisponivel') return onHorarioIndisponivel(resposta.mensagem)
-    if (resposta.campos) setErros(resposta.campos as Erros)
+    if (resposta.campos) {
+      setErros(resposta.campos as Erros)
+      setEditando(true)
+    }
     setErroGeral(resposta.mensagem)
   }
 
@@ -135,40 +150,61 @@ export function FormularioLead({
         </button>
       </div>
       <div className={s.cabecalho}>
-        <h2 className={s.titulo}>Seus dados</h2>
-        <p className={s.subtitulo}>Para enviarmos o convite com o link da reunião.</p>
+        <h2 className={s.titulo}>{editando ? 'Seus dados' : 'Confirme o agendamento'}</h2>
+        <p className={s.subtitulo}>
+          {editando
+            ? 'Para enviarmos o convite com o link da reunião.'
+            : 'O convite vai para os dados que você já enviou.'}
+        </p>
       </div>
 
-      {CAMPOS.map((c, i) => (
-        <div className="campo" key={c.nome}>
-          <label htmlFor={`campo-${c.nome}`} className="rotulo">
-            {c.rotulo}
-          </label>
-          <input
-            id={`campo-${c.nome}`}
-            ref={(el) => {
-              campos.current[c.nome] = el
-            }}
-            name={c.nome}
-            className="entrada"
-            type={c.tipo}
-            inputMode={c.inputMode}
-            autoComplete={c.autoComplete}
-            autoCapitalize={c.tipo === 'text' ? 'words' : 'off'}
-            enterKeyHint={i === CAMPOS.length - 1 ? 'send' : 'next'}
-            placeholder={c.placeholder}
-            value={valores[c.nome]}
-            onChange={(e) => alterar(c.nome, e.target.value)}
-            aria-invalid={Boolean(erros[c.nome])}
-            aria-describedby={erros[c.nome] ? `erro-${c.nome}` : undefined}
-          />
-          {erros[c.nome] && (
-            <p id={`erro-${c.nome}`} className="erro-campo">
-              <CircleAlert size={14} aria-hidden /> {erros[c.nome]}
-            </p>
-          )}
+      {!editando && (
+        <div className={s.resumo}>
+          <dl>
+            {CAMPOS.map((c) => (
+              <div key={c.nome}>
+                <dt>{c.curto}</dt>
+                <dd>{valores[c.nome]}</dd>
+              </div>
+            ))}
+          </dl>
+          <button type="button" className="botao botao-fantasma" onClick={() => setEditando(true)}>
+            <Pencil size={16} aria-hidden /> Editar
+          </button>
         </div>
-      ))}
+      )}
+
+      {editando &&
+        CAMPOS.map((c, i) => (
+          <div className="campo" key={c.nome}>
+            <label htmlFor={`campo-${c.nome}`} className="rotulo">
+              {c.rotulo}
+            </label>
+            <input
+              id={`campo-${c.nome}`}
+              ref={(el) => {
+                campos.current[c.nome] = el
+              }}
+              name={c.nome}
+              className="entrada"
+              type={c.tipo}
+              inputMode={c.inputMode}
+              autoComplete={c.autoComplete}
+              autoCapitalize={c.tipo === 'text' ? 'words' : 'off'}
+              enterKeyHint={i === CAMPOS.length - 1 ? 'send' : 'next'}
+              placeholder={c.placeholder}
+              value={valores[c.nome]}
+              onChange={(e) => alterar(c.nome, e.target.value)}
+              aria-invalid={Boolean(erros[c.nome])}
+              aria-describedby={erros[c.nome] ? `erro-${c.nome}` : undefined}
+            />
+            {erros[c.nome] && (
+              <p id={`erro-${c.nome}`} className="erro-campo">
+                <CircleAlert size={14} aria-hidden /> {erros[c.nome]}
+              </p>
+            )}
+          </div>
+        ))}
 
       {/* Honeypot: invisível para gente, irresistível para robô. */}
       <div className={s.armadilha} aria-hidden="true">
