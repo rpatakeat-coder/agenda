@@ -1,0 +1,373 @@
+/* Takeat Design System — tokens do Agenda Site (CLAUDE.md §3), com raios, sombras e movimento do
+   Takeat OS (Takeat_Design_System.md). Tema escuro pelo sistema, ou forçado com ?tema=claro|escuro. */
+
+:root {
+  /* Marca e estados */
+  --brand-500: #c8131b;
+  --brand-600: #94090f;
+  --brand-50: #fdf3f4;
+  --success-500: #2ec9b7;
+  --success-600: #1d9688;
+  --warning-500: #ffb32f;
+  --info-500: #01afff;
+
+  /* Neutros — tema claro */
+  --canvas: #f6f6f6;
+  --surface: #ffffff;
+  --ink-900: #222222;
+  --ink-700: #454545;
+  --ink-500: #7a7a7a;
+  --ink-300: #c6c6c6;
+
+  /* Derivados dos tokens acima (mesma família neutra, sem tom azulado) */
+  --linha: #e6e6e6;
+  --realce: #f6f6f6;
+  --borda-campo: var(--ink-300);
+  --brand-texto: var(--brand-500);
+  --brand-sutil: var(--brand-50);
+  --success-sutil: #e6f8f6;
+  --warning-sutil: #fff6e5;
+
+  --raio-sm: 6px;
+  --raio-md: 10px;
+  --raio-lg: 14px;
+  --raio-xl: 16px;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --sombra-elevada: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --fonte:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --canvas: #121212;
+    --surface: #1e1e1e;
+    --ink-900: #ededed;
+    --ink-700: #dddddd;
+    --ink-500: #969696;
+    --ink-300: #2a2a2a;
+    --linha: #2a2a2a;
+    --realce: #262626;
+    --borda-campo: #3a3a3a;
+    /* vermelho clareado só para texto sobre fundo escuro (contraste AA) */
+    --brand-texto: #f2555b;
+    --brand-sutil: #3a1a1c;
+    --success-sutil: #12302d;
+    --warning-sutil: #33290f;
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --sombra-elevada: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema="escuro"] {
+  --canvas: #121212;
+  --surface: #1e1e1e;
+  --ink-900: #ededed;
+  --ink-700: #dddddd;
+  --ink-500: #969696;
+  --ink-300: #2a2a2a;
+  --linha: #2a2a2a;
+  --realce: #262626;
+  --borda-campo: #3a3a3a;
+  --brand-texto: #f2555b;
+  --brand-sutil: #3a1a1c;
+  --success-sutil: #12302d;
+  --warning-sutil: #33290f;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-elevada: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink-700);
+  font: 400 15px / 1.5 var(--fonte);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dentro do <iframe> do site: fundo transparente e altura pelo conteúdo (o embed.js ajusta). */
+:root[data-embed] body {
+  min-height: 0;
+  background: transparent;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--ink-900);
+  letter-spacing: -0.015em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--info-500);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--brand-sutil);
+}
+
+/* biome-ignore-start lint/complexity/noImportantStyles: movimento reduzido precisa vencer qualquer animação. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: fim do bloco de movimento reduzido. */
+
+/* ─── Primitivas ────────────────────────────────────────────────────────────────────────────── */
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--raio-md);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--ease),
+    border-color 200ms var(--ease),
+    color 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
+.botao:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.botao:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.botao-primario {
+  background: var(--brand-500);
+  color: #ffffff;
+}
+
+.botao-primario:hover:not(:disabled) {
+  background: var(--brand-600);
+}
+
+.botao-secundario {
+  background: var(--surface);
+  border-color: var(--borda-campo);
+  color: var(--ink-900);
+}
+
+.botao-secundario:hover:not(:disabled) {
+  background: var(--realce);
+  border-color: var(--ink-500);
+}
+
+.botao-fantasma {
+  min-height: 44px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--ink-700);
+}
+
+.botao-fantasma:hover:not(:disabled) {
+  background: var(--realce);
+  color: var(--ink-900);
+}
+
+.botao-perigo {
+  background: transparent;
+  border-color: var(--borda-campo);
+  color: var(--brand-texto);
+}
+
+.botao-perigo:hover:not(:disabled) {
+  background: var(--brand-sutil);
+  border-color: var(--brand-500);
+}
+
+.botao-bloco {
+  width: 100%;
+}
+
+.campo {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.rotulo {
+  color: var(--ink-900);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.entrada {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-md);
+  background: var(--surface);
+  color: var(--ink-900);
+  /* 16px: o iOS não dá zoom ao focar */
+  font-size: 16px;
+  transition:
+    border-color 200ms var(--ease),
+    box-shadow 200ms var(--ease);
+}
+
+.entrada::placeholder {
+  color: var(--ink-500);
+}
+
+.entrada:hover {
+  border-color: var(--ink-500);
+}
+
+.entrada:focus {
+  border-color: var(--info-500);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info-500) 22%, transparent);
+}
+
+.entrada[aria-invalid="true"] {
+  border-color: var(--brand-500);
+}
+
+textarea.entrada {
+  min-height: 96px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.erro-campo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-texto);
+  font-size: 13px;
+}
+
+.alerta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--raio-md);
+  background: var(--brand-sutil);
+  color: var(--ink-900);
+  font-size: 14px;
+}
+
+.alerta svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brand-texto);
+}
+
+.alerta-aviso {
+  background: var(--warning-sutil);
+}
+
+.alerta-aviso svg {
+  color: var(--warning-500);
+}
+
+.esqueleto {
+  border-radius: var(--raio-sm);
+  background: linear-gradient(90deg, var(--realce) 25%, var(--linha) 37%, var(--realce) 63%);
+  background-size: 400% 100%;
+  animation: brilho 1.4s ease infinite;
+}
+
+.girando {
+  animation: girar 0.8s linear infinite;
+}
+
+.entrar {
+  animation: entrar 250ms var(--ease) both;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes brilho {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

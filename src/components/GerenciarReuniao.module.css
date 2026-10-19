@@ -1,0 +1,115 @@
+.painel {
+  display: grid;
+  gap: 20px;
+  max-width: 560px;
+}
+
+.voltar {
+  margin: -8px 0 -8px -12px;
+}
+
+.cabecalho {
+  display: grid;
+  gap: 4px;
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.texto {
+  color: var(--ink-700);
+}
+
+.acoes {
+  display: grid;
+  gap: 8px;
+}
+
+@container (min-width: 420px) {
+  .acoes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.troca {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--canvas);
+}
+
+.troca dt {
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.troca dd {
+  margin: 2px 0 0;
+}
+
+.troca dd::first-letter {
+  text-transform: uppercase;
+}
+
+.antigo {
+  color: var(--ink-500);
+  text-decoration: line-through;
+}
+
+.novo {
+  color: var(--ink-900);
+  font-weight: 600;
+}
+
+.motivos {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.motivo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-md);
+  color: var(--ink-900);
+  cursor: pointer;
+  transition:
+    border-color 200ms var(--ease),
+    background-color 200ms var(--ease);
+}
+
+.motivo:hover {
+  border-color: var(--ink-500);
+}
+
+.motivo input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand-500);
+}
+
+.motivoAtivo,
+.motivoAtivo:hover {
+  border-color: var(--brand-500);
+  background: var(--brand-sutil);
+}
+
+.opcional {
+  color: var(--ink-500);
+  font-weight: 400;
+}

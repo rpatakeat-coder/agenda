@@ -1,0 +1,51 @@
+.formulario {
+  display: grid;
+  gap: 16px;
+}
+
+@container (min-width: 560px) {
+  .formulario {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 16px;
+  }
+}
+
+.topo,
+.cabecalho,
+.largo {
+  grid-column: 1 / -1;
+}
+
+.topo {
+  margin: -8px 0 0 -12px;
+}
+
+.cabecalho {
+  display: grid;
+  gap: 4px;
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.subtitulo {
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+.nota {
+  margin-top: 10px;
+  color: var(--ink-500);
+  font-size: 13px;
+  text-align: center;
+}
+
+.armadilha {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

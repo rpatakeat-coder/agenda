@@ -1,0 +1,113 @@
+.confirmacao {
+  display: grid;
+  gap: 24px;
+}
+
+.cabecalho {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.selo {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--success-sutil);
+  color: var(--success-600);
+  animation: surgir 300ms var(--ease) both;
+}
+
+.titulo {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.forte {
+  color: var(--ink-900);
+  font-weight: 600;
+}
+
+.resumo {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--canvas);
+  list-style: none;
+}
+
+.resumo li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.resumo li > span::first-letter {
+  text-transform: uppercase;
+}
+
+.resumo svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ink-500);
+}
+
+.link {
+  color: var(--brand-texto);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-underline-offset: 3px;
+}
+
+.secao {
+  display: grid;
+  gap: 10px;
+}
+
+.subtitulo {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.botoes {
+  display: grid;
+  gap: 8px;
+}
+
+@container (min-width: 420px) {
+  .botoes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dica {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+.rodape {
+  padding-top: 16px;
+  border-top: 1px solid var(--linha);
+  color: var(--ink-700);
+  font-size: 14px;
+  text-align: center;
+}
+
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
