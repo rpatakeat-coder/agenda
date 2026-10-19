@@ -1,0 +1,171 @@
+.pagina {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+@media (min-width: 640px) {
+  .pagina {
+    padding: 40px 24px;
+  }
+}
+
+:global(:root[data-embed]) .pagina {
+  padding: 4px;
+}
+
+.cartao {
+  display: grid;
+  width: 100%;
+  max-width: 1040px;
+  overflow: hidden;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-xl);
+  background: var(--surface);
+  box-shadow: var(--sombra);
+}
+
+.semLateral {
+  max-width: 600px;
+}
+
+@media (min-width: 900px) {
+  .cartao:not(.semLateral) {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+.lateral {
+  padding: 20px;
+  border-bottom: 1px solid var(--linha);
+}
+
+@media (min-width: 900px) {
+  .lateral {
+    padding: 32px 28px;
+    border-right: 1px solid var(--linha);
+    border-bottom: 0;
+  }
+}
+
+.principal {
+  min-width: 0;
+  padding: 20px;
+  container-type: inline-size;
+}
+
+@media (min-width: 900px) {
+  .principal {
+    min-height: 560px;
+    padding: 32px;
+  }
+}
+
+.semLateral .principal {
+  min-height: 0;
+}
+
+.info {
+  display: grid;
+  gap: 16px;
+}
+
+.logo {
+  width: auto;
+  height: 28px;
+}
+
+@media (min-width: 900px) {
+  .logo {
+    height: 34px;
+  }
+}
+
+.cabecalho {
+  display: grid;
+  gap: 4px;
+}
+
+.sobretitulo {
+  color: var(--ink-500);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.titulo {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--ink-700);
+  font-size: 14px;
+  font-weight: 500;
+  list-style: none;
+}
+
+.meta li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meta svg {
+  color: var(--ink-500);
+}
+
+@media (min-width: 900px) {
+  .meta {
+    flex-direction: column;
+  }
+}
+
+.horario {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--raio-md);
+  background: var(--brand-sutil);
+  color: var(--ink-900);
+  font-size: 14px;
+}
+
+.horario svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--brand-texto);
+}
+
+.horarioRotulo {
+  color: var(--brand-texto);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.horarioQuando {
+  font-weight: 600;
+}
+
+.horarioQuando::first-letter {
+  text-transform: uppercase;
+}
+
+.descricao {
+  display: none;
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+@media (min-width: 900px) {
+  .descricao {
+    display: block;
+  }
+}

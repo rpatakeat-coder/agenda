@@ -1,0 +1,129 @@
+.seletor {
+  display: grid;
+  gap: 20px;
+}
+
+.titulo {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.grade {
+  display: grid;
+  gap: 24px;
+}
+
+/* Lado a lado quando o espaço do cartão permite (container query no .principal da Moldura). */
+@container (min-width: 600px) {
+  .grade {
+    grid-template-columns: minmax(0, 1fr) 208px;
+    align-items: start;
+    gap: 32px;
+  }
+}
+
+.colunaCalendario {
+  display: grid;
+  gap: 16px;
+}
+
+.fuso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-700);
+  font-size: 14px;
+}
+
+.fuso svg {
+  flex: none;
+  color: var(--ink-500);
+}
+
+.fuso select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-md);
+  background: var(--surface);
+  color: var(--ink-900);
+  font-size: 14px;
+}
+
+.colunaHorarios {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  scroll-margin-top: 16px;
+}
+
+.dia {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dia::first-letter {
+  text-transform: uppercase;
+}
+
+.horarios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@container (min-width: 600px) {
+  .horarios {
+    grid-template-columns: 1fr;
+    max-height: 420px;
+    padding: 2px 6px 2px 2px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.horario {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--raio-md);
+  background: var(--surface);
+  color: var(--ink-900);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--ease),
+    border-color 200ms var(--ease),
+    color 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+
+.horario:hover {
+  border-color: var(--brand-500);
+  background: var(--brand-sutil);
+  color: var(--brand-texto);
+}
+
+.horario:active {
+  transform: scale(0.97);
+}
+
+.esqueletoGrade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.esqueletoDia {
+  width: 100%;
+  max-width: 44px;
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 50%;
+}
