@@ -58,9 +58,65 @@ export const agendamentoSchema = dadosLeadSchema.extend({
   origem: origemSchema.optional(),
   /** Honeypot: campo escondido que só robô preenche. */
   site: z.string().max(500).optional(),
+  /** Sessão aberta pelo formulário do site: vendedor, respostas e origem saem dela, não do navegador. */
+  sessao: z.string().max(4000).optional(),
 })
 
 export type PedidoAgendamento = z.output<typeof agendamentoSchema>
+
+const campo = z.string().trim().max(500).optional()
+
+/**
+ * O que o backend do takeat.app manda ao abrir uma sessão (POST /api/sessoes): as respostas do
+ * formulário com os nomes do HubSpot, como estão. Aceita também os nomes da agenda; o resto do
+ * formulário (tipo de operação, desafio…) é ignorado.
+ */
+export const formularioDoSiteSchema = z
+  .object({
+    firstname: campo,
+    nome: campo,
+    name: campo,
+    email: campo,
+    phone: campo,
+    telefone: campo,
+    nome_do_restaurante: campo,
+    empresa: campo,
+    faturamento_contato: campo,
+    faturamento: campo,
+    quantidade_mesas: campo,
+    mesas: campo,
+    lead_id: campo,
+    hubspot_contact_id: campo,
+    canal: campo,
+    utm_source: campo,
+    utm_medium: campo,
+    utm_campaign: campo,
+    utm_term: campo,
+    utm_content: campo,
+    page_uri: campo,
+    pagina: campo,
+  })
+  .transform((f) => ({
+    lead: {
+      nome: f.firstname ?? f.nome ?? f.name ?? '',
+      email: f.email ?? '',
+      telefone: f.phone ?? f.telefone ?? '',
+      empresa: f.nome_do_restaurante ?? f.empresa ?? '',
+    },
+    faturamento: f.faturamento_contato ?? f.faturamento ?? null,
+    mesas: f.quantidade_mesas ?? f.mesas ?? null,
+    // Cortado nos tamanhos do origemSchema: UTM longa não derruba a sessão.
+    origem: {
+      canal: (f.canal ?? 'site_formulario').slice(0, 40),
+      lead_id: (f.lead_id ?? f.hubspot_contact_id)?.slice(0, 80),
+      utm_source: f.utm_source?.slice(0, 120),
+      utm_medium: f.utm_medium?.slice(0, 120),
+      utm_campaign: f.utm_campaign?.slice(0, 200),
+      utm_term: f.utm_term?.slice(0, 200),
+      utm_content: f.utm_content?.slice(0, 200),
+      pagina: (f.page_uri ?? f.pagina)?.slice(0, 500),
+    } satisfies Origem,
+  }))
 
 export const remarcacaoSchema = z.object({
   inicio: instante,

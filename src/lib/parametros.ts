@@ -48,6 +48,13 @@ export const vendedorDaUrl = (busca: ParametrosDaUrl): string | null =>
 export const faturamentoDaUrl = (busca: ParametrosDaUrl): string | null =>
   primeiro(busca, 'faturamento', 'faturamento_contato') ?? null
 
+/** O código da sessão aberta pelo formulário do site (sem o corte de 200 caracteres dos outros). */
+export function sessaoDaUrl(busca: ParametrosDaUrl): string | null {
+  const valor = busca.sessao
+  const texto = (Array.isArray(valor) ? valor[0] : valor)?.trim()
+  return texto && texto.length <= 4000 ? texto : null
+}
+
 /** A quantidade de mesas do formulário do site (`quantidade_mesas`) ou do link. */
 export const mesasDaUrl = (busca: ParametrosDaUrl): string | null =>
   primeiro(busca, 'mesas', 'quantidade_mesas') ?? null

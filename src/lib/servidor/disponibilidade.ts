@@ -5,7 +5,7 @@ import { SEGMENTO_POR_RESPOSTA, VENDEDORES_POR_SEGMENTO } from '@/config/roteame
 import { type AgendaDoDia, type FiltroVendedores, resolverVendedor, vendedoresElegiveis } from '@/lib/agenda'
 import type { Disponibilidade } from '@/lib/contrato'
 import { type FaixaFaturamento, type FaixaMesas, permitidosParaLead } from '@/lib/roteamento'
-import { calcularSlots, diasDaJanela, type SlotCalculado } from '@/lib/slots'
+import { calcularSlots, diasDaJanela, type SlotCalculado, type VendedorAgenda } from '@/lib/slots'
 import { dataBrasilia, isoBrasilia } from '@/lib/tempo'
 import { regrasDaAgenda, vendedoresPermitidos } from './config'
 import { ErroAgenda } from './http'
@@ -47,7 +47,15 @@ function filtroDoDia(
   return { permitidos: [], vendedor: achado.pessoa.email, ignorar: opcoes.ignorar, nome: achado.pessoa.nome }
 }
 
-export async function consultarDisponibilidade(opcoes: OpcoesDeAgenda): Promise<Disponibilidade> {
+export interface HorariosDaJanela {
+  /** Nome do vendedor do link direcionado (null na roleta). */
+  nome: string | null
+  /** Por dia: quem pode receber o lead e os horários, cada um com os vendedores livres em ordem. */
+  dias: Array<{ data: string; vendedores: VendedorAgenda[]; slots: SlotCalculado[] }>
+}
+
+/** Os horários livres da janela COM os vendedores de cada um — só no servidor (tem e-mail de vendedor). */
+export async function horariosDaJanela(opcoes: OpcoesDeAgenda): Promise<HorariosDaJanela> {
   const regras = regrasDaAgenda()
   const agoraMs = Date.now()
   const datas = diasDaJanela(dataBrasilia(agoraMs), regras)
@@ -63,16 +71,26 @@ export async function consultarDisponibilidade(opcoes: OpcoesDeAgenda): Promise<
 
   const filtro = filtroDoDia(primeira, opcoes)
   return {
-    duracaoMin: regras.duracaoMin,
-    vendedor: filtro.nome ? { nome: filtro.nome } : null,
-    dias: agendas.map((agenda) => ({
-      data: agenda.data,
-      slots: calcularSlots({
+    nome: filtro.nome,
+    dias: agendas.map((agenda) => {
+      const vendedores = vendedoresElegiveis(agenda, filtro)
+      return {
         data: agenda.data,
-        vendedores: vendedoresElegiveis(agenda, filtro),
-        regras,
-        agoraMs,
-      }).map((s) => ({ inicio: isoBrasilia(s.inicioMs), fim: isoBrasilia(s.fimMs) })),
+        vendedores,
+        slots: calcularSlots({ data: agenda.data, vendedores, regras, agoraMs }),
+      }
+    }),
+  }
+}
+
+export async function consultarDisponibilidade(opcoes: OpcoesDeAgenda): Promise<Disponibilidade> {
+  const { nome, dias } = await horariosDaJanela(opcoes)
+  return {
+    duracaoMin: regrasDaAgenda().duracaoMin,
+    vendedor: nome ? { nome } : null,
+    dias: dias.map(({ data, slots }) => ({
+      data,
+      slots: slots.map((s) => ({ inicio: isoBrasilia(s.inicioMs), fim: isoBrasilia(s.fimMs) })),
     })),
   }
 }

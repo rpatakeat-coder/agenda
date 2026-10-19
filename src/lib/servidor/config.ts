@@ -2,6 +2,7 @@
 // Takeat OS nunca vão para o navegador.
 import 'server-only'
 
+import { createHash, timingSafeEqual } from 'node:crypto'
 import type { RegrasAgenda } from '@/lib/slots'
 import { dataValida, horarioValido, paraMinutos } from '@/lib/tempo'
 
@@ -58,14 +59,26 @@ export function regrasDaAgenda(): RegrasAgenda {
   return regras
 }
 
-type Segredo = 'AGENDA_DO_DIA_TOKEN' | 'AGENDA_EVENTOS_TOKEN' | 'AGENDA_LINK_SECRET'
+type Segredo = 'AGENDA_DO_DIA_TOKEN' | 'AGENDA_EVENTOS_TOKEN' | 'AGENDA_LINK_SECRET' | 'AGENDA_SITE_TOKEN'
+
+const MINIMO: Partial<Record<Segredo, number>> = { AGENDA_LINK_SECRET: 32, AGENDA_SITE_TOKEN: 32 }
 
 export function segredo(nome: Segredo): string {
   const valor = env(nome)
   if (!valor) throw new ErroDeConfiguracao(`${nome} não configurado.`)
-  if (nome === 'AGENDA_LINK_SECRET' && valor.length < 32)
-    throw new ErroDeConfiguracao('AGENDA_LINK_SECRET precisa ter pelo menos 32 caracteres.')
+  const minimo = MINIMO[nome]
+  if (minimo && valor.length < minimo)
+    throw new ErroDeConfiguracao(`${nome} precisa ter pelo menos ${minimo} caracteres.`)
   return valor
+}
+
+/** O token recebido confere com o segredo? Tempo constante (não vaza o tamanho do acerto). */
+export function tokenConfere(recebido: string | null, nome: Segredo): boolean {
+  const esperado = createHash('sha256').update(segredo(nome), 'utf8').digest()
+  const dado = createHash('sha256')
+    .update(recebido ?? '', 'utf8')
+    .digest()
+  return timingSafeEqual(esperado, dado)
 }
 
 export const takeatOsUrl = (): string => env('TAKEAT_OS_URL') ?? 'https://takeatos.vercel.app'

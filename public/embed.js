@@ -12,7 +12,11 @@
  * data-faturamento="Entre 20 e 50 mil", data-mesas="Até 10 mesas", data-name, data-email,
  * data-phone, data-empresa, data-canal. UTMs e lead_id da URL da página são repassados sozinhos.
  *
- * Depois do formulário do site: passe as respostas como estão (firstname, email, phone,
+ * Depois do formulário do site (recomendado): o backend do site abre a sessão em POST /api/sessoes
+ * e a página mostra a agenda dela — a agenda decide vendedor e segmento (fonte única):
+ *   <div data-takeat-agenda data-sessao="{sessao}"></div>   ou   TakeatAgenda.abrir({ sessao })
+ *
+ * Sem sessão, dá para passar as respostas como estão (firstname, email, phone,
  * nome_do_restaurante, faturamento_contato, quantidade_mesas). Faturamento e mesas decidem o
  * segmento do lead e de quais vendedores é a agenda; o lead só escolhe o horário e confirma, sem
  * digitar os dados de novo:
@@ -44,8 +48,9 @@
     'faturamento_contato',
     'mesas',
     'quantidade_mesas',
+    'sessao',
   ]
-  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal', 'faturamento', 'mesas']
+  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal', 'faturamento', 'mesas', 'sessao']
   // Nomes do formulário do site (propriedades do HubSpot) → nomes da agenda.
   const DO_FORMULARIO = {
     firstname: 'name',
@@ -95,6 +100,7 @@
     canal: el.dataset.canal,
     faturamento: el.dataset.faturamento,
     mesas: el.dataset.mesas,
+    sessao: el.dataset.sessao,
   })
 
   // ─── Inline ───────────────────────────────────────────────────────────────────────────────────

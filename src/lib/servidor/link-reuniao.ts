@@ -1,11 +1,11 @@
 // O link de remarcar/cancelar (/reuniao/<token>), como o do Calendly: quem tem o link gerencia a
-// reunião. O token é cifrado (AES-256-GCM) — carrega o google_id e os dados do lead, que não
-// podem ficar legíveis numa URL — e autenticado: alterar um byte invalida o link.
+// reunião. O token é selado (src/lib/servidor/selo.ts) — carrega o google_id e os dados do lead,
+// que não podem ficar legíveis numa URL.
 import 'server-only'
 
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { IDS_DE_FAIXA, IDS_DE_MESAS } from '@/lib/roteamento'
+import { abrir, selar } from './selo'
 
 const dadosSchema = z.object({
   /** google_id do evento. */
@@ -26,28 +26,8 @@ const dadosSchema = z.object({
 
 export type DadosReuniao = z.infer<typeof dadosSchema>
 
-const IV = 12
-const TAG = 16
-const chave = (segredo: string): Buffer => createHash('sha256').update(segredo, 'utf8').digest()
-
-export function selarReuniao(dados: DadosReuniao, segredo: string): string {
-  const iv = randomBytes(IV)
-  const cifra = createCipheriv('aes-256-gcm', chave(segredo), iv)
-  const cifrado = Buffer.concat([cifra.update(JSON.stringify(dados), 'utf8'), cifra.final()])
-  return Buffer.concat([iv, cifra.getAuthTag(), cifrado]).toString('base64url')
-}
+export const selarReuniao = (dados: DadosReuniao, segredo: string): string => selar(dados, segredo)
 
 /** Devolve os dados ou null (token malformado, adulterado ou de outro segredo). */
-export function abrirReuniao(token: string, segredo: string): DadosReuniao | null {
-  try {
-    const bruto = Buffer.from(token, 'base64url')
-    if (bruto.length <= IV + TAG) return null
-    const decifra = createDecipheriv('aes-256-gcm', chave(segredo), bruto.subarray(0, IV))
-    decifra.setAuthTag(bruto.subarray(IV, IV + TAG))
-    const json = Buffer.concat([decifra.update(bruto.subarray(IV + TAG)), decifra.final()]).toString('utf8')
-    const lido = dadosSchema.safeParse(JSON.parse(json))
-    return lido.success ? lido.data : null
-  } catch {
-    return null
-  }
-}
+export const abrirReuniao = (token: string, segredo: string): DadosReuniao | null =>
+  abrir(token, segredo, dadosSchema)

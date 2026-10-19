@@ -13,6 +13,7 @@ import {
   respostaOk,
 } from '@/lib/servidor/http'
 import { excedeuLimite, executarUmaVez, ipDoPedido } from '@/lib/servidor/protecao'
+import { abrirSessao } from '@/lib/servidor/sessao'
 
 export const maxDuration = 60
 
@@ -25,13 +26,26 @@ export async function POST(pedido: Request): Promise<Response> {
 
   const lido = agendamentoSchema.safeParse(await lerJson(pedido))
   if (!lido.success) return respostaDeValidacao(lido.error)
-  const { site, inicio, vendedor, origem, faturamento, mesas, ...lead } = lido.data
-  const respostas = { faixa: faixaDoFaturamento(faturamento), mesas: faixaDeMesas(mesas) }
+  const { site, inicio, sessao, vendedor, origem, faturamento, mesas, ...lead } = lido.data
   // Honeypot preenchido: robô. Resposta genérica, sem dizer o porquê.
   if (site) return respostaErro('dados_invalidos', 400)
 
   const chave = pedido.headers.get('idempotency-key')?.trim().slice(0, 100) || null
   try {
+    // Sessão do formulário do site: vendedor, respostas e origem saem dela (fonte única) — o que o
+    // navegador mandar nesses campos é ignorado. Sessão vencida: vale o que veio no pedido.
+    const daSessao = sessao ? abrirSessao(sessao) : null
+    const distribuicao = daSessao
+      ? {
+          vendedor: daSessao.vd?.e ?? null,
+          respostas: { faixa: daSessao.fx, mesas: daSessao.mx },
+          origem: daSessao.o,
+        }
+      : {
+          vendedor,
+          respostas: { faixa: faixaDoFaturamento(faturamento), mesas: faixaDeMesas(mesas) },
+          origem,
+        }
     // O limite por contato fica dentro: o segundo clique (mesma chave) não conta como tentativa.
     const reuniao = await executarUmaVez(chave && `${ip}:${chave}`, 15 * 60_000, async () => {
       if (
@@ -39,10 +53,7 @@ export async function POST(pedido: Request): Promise<Response> {
         excedeuLimite(`agendar:telefone:${lead.telefone}`, 5, UMA_HORA)
       )
         throw new ErroAgenda('muitas_tentativas', 429)
-      return agendar(
-        { lead, inicio, vendedor, respostas, origem },
-        { baseUrl: urlPublica(new URL(pedido.url).origin) },
-      )
+      return agendar({ lead, inicio, ...distribuicao }, { baseUrl: urlPublica(new URL(pedido.url).origin) })
     })
     return respostaOk({ reuniao }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (e) {

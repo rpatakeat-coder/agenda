@@ -7,6 +7,7 @@ import type { LeadInicial } from '@/lib/parametros'
 import type { RespostasDoLead } from '@/lib/roteamento'
 import { type CampoLead, dadosLeadSchema, type Origem } from '@/lib/schemas'
 import { mascararTelefone } from '@/lib/telefone'
+import { formatarWhatsapp } from '@/lib/whatsapp'
 import s from './FormularioLead.module.css'
 import { novaChave, postar } from './hooks'
 
@@ -65,18 +66,20 @@ interface Props {
   vendedor: string | null
   respostas: RespostasDoLead
   origem: Origem
+  sessao: string | null
   onVoltar: () => void
   onConfirmada: (reuniao: ReuniaoConfirmada) => void
   onHorarioIndisponivel: (mensagem: string) => void
 }
 
-/** Passo 3: identificação rápida (pré-preenchida pela URL quando o link vem do WhatsApp). */
+/** Passo 3: identificação rápida (pré-preenchida pela sessão do formulário do site ou pela URL). */
 export function FormularioLead({
   slot,
   inicial,
   vendedor,
   respostas,
   origem,
+  sessao,
   onVoltar,
   onConfirmada,
   onHorarioIndisponivel,
@@ -85,7 +88,10 @@ export function FormularioLead({
     nome: inicial.nome ?? '',
     empresa: inicial.empresa ?? '',
     email: inicial.email ?? '',
-    telefone: inicial.telefone ? mascararTelefone(inicial.telefone) : '',
+    // Da sessão vem em E.164 (+5511…): mostra no formato brasileiro, como o lead digitou.
+    telefone: inicial.telefone?.startsWith('+55')
+      ? formatarWhatsapp(inicial.telefone)
+      : mascararTelefone(inicial.telefone ?? ''),
   })
   // Dados completos vindos do formulário do site: o lead só confirma, sem digitar de novo.
   const [editando, setEditando] = useState(() => !dadosLeadSchema.safeParse(valores).success)
@@ -130,6 +136,7 @@ export function FormularioLead({
         mesas: respostas.mesas ?? undefined,
         origem,
         site: armadilha.current?.value || undefined,
+        sessao: sessao ?? undefined,
       },
       { 'Idempotency-Key': chave },
     )

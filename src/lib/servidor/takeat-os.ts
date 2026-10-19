@@ -139,6 +139,33 @@ export const criarEvento = (pedido: PedidoCriarEvento): Promise<RespostaEvento> 
     respostaEventoSchema,
   )
 
+const simulacaoSchema = z.object({
+  ok: z.literal(true),
+  simulacao: z.literal(true),
+  vendedor: vendedorSchema,
+})
+
+/**
+ * O `simular` do criar: confere que o vendedor pode receber a reunião naquele horário e traz os
+ * dados dele (com o WhatsApp) — sem criar nada nem avisar ninguém. `forcar` ignora a agenda e
+ * confere só a permissão.
+ */
+export const simularCriacao = (pedido: {
+  data: string
+  inicio: string
+  duracao: number
+  vendedor: string
+  forcar?: boolean
+}): Promise<VendedorOS> =>
+  chamar(
+    'agenda-criar-evento',
+    {
+      token: segredo('AGENDA_EVENTOS_TOKEN'),
+      corpo: { titulo: 'Sessão de agendamento do site', ...pedido, simular: true },
+    },
+    simulacaoSchema,
+  ).then((r) => r.vendedor)
+
 export interface PedidoEditarEvento {
   google_id: string
   vendedor: string

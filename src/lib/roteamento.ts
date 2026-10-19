@@ -130,6 +130,46 @@ export function segmentoDoLead(
   return mesas ? porFaixa[mesas] : 'faltam_mesas'
 }
 
+// ─── Vendedor da sessão (formulário do site) ───────────────────────────────────────────────────
+
+/**
+ * Posição estável e uniforme na roleta (hash FNV-1a da chave): o mesmo lead cai sempre no mesmo
+ * vendedor, e leads diferentes se espalham por igual. Sem estado — a agenda não tem banco.
+ */
+export function posicaoNaRoleta(chave: string, total: number): number {
+  let hash = 0x811c9dc5
+  for (const byte of new TextEncoder().encode(chave.trim().toLowerCase())) {
+    hash ^= byte
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return total > 0 ? hash % total : 0
+}
+
+/**
+ * Quem disputa o lead da sessão: os vendedores do segmento com horário livre logo — nos primeiros
+ * `diasProximos` dias que têm horário (senão, qualquer um com horário na janela). Cada um com o seu
+ * primeiro horário, em ordem de e-mail (a ordem fixa é o que torna a roleta estável).
+ */
+export function candidatosDaSessao<S extends { vendedores: ReadonlyArray<{ email: string }> }>(
+  dias: ReadonlyArray<{ data: string; slots: S[] }>,
+  diasProximos = 2,
+): Array<{ vendedor: S['vendedores'][number]; data: string; slot: S }> {
+  type V = S['vendedores'][number]
+  const primeiro = new Map<string, { vendedor: V; data: string; slot: S; ordem: number }>()
+  const comHorario = dias.filter((d) => d.slots.length)
+  comHorario.forEach((dia, ordem) => {
+    for (const slot of dia.slots)
+      for (const vendedor of slot.vendedores)
+        if (!primeiro.has(vendedor.email))
+          primeiro.set(vendedor.email, { vendedor, data: dia.data, slot, ordem })
+  })
+  const todos = [...primeiro.values()]
+  const logo = todos.filter((c) => c.ordem < diasProximos)
+  return (logo.length ? logo : todos)
+    .toSorted((a, b) => a.vendedor.email.localeCompare(b.vendedor.email))
+    .map(({ vendedor, data, slot }) => ({ vendedor, data, slot }))
+}
+
 export type FaltaResposta = 'faturamento_obrigatorio' | 'mesas_obrigatorio'
 
 /**

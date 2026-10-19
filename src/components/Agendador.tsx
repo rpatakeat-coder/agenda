@@ -23,13 +23,15 @@ interface Props {
   perguntar: { faturamento: boolean; mesasPara: readonly FaixaFaturamento[] }
   lead: LeadInicial
   origem: Origem
+  /** Sessão aberta pelo formulário do site: o servidor usa o vendedor e as respostas dela. */
+  sessao?: string | null
   duracaoMin: number
 }
 
 const NENHUMA_NA_PAGINA = { faixa: false, mesas: false }
 
 /** O fluxo de agendamento: (faturamento → mesas →) dia → horário → dados → confirmação. */
-export function Agendador({ vendedor, perguntar, lead, origem, duracaoMin, ...props }: Props) {
+export function Agendador({ vendedor, perguntar, lead, origem, sessao, duracaoMin, ...props }: Props) {
   const [respostas, setRespostas] = useState(props.respostas)
   // Respondidas aqui (e não no formulário do site): o lead pode trocar.
   const [naPagina, setNaPagina] = useState(NENHUMA_NA_PAGINA)
@@ -94,6 +96,7 @@ export function Agendador({ vendedor, perguntar, lead, origem, duracaoMin, ...pr
           vendedor={vendedor}
           respostas={respostas}
           origem={origem}
+          sessao={sessao ?? null}
           onVoltar={() => setSlot(null)}
           onConfirmada={(r) => {
             setReuniao(r)

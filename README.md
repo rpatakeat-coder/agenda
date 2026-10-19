@@ -51,6 +51,7 @@ npm run build
 
 1. Importar o repositório na Vercel (framework Next.js) e apontar o domínio, ex.: `agenda.takeat.app`.
 2. Cadastrar as variáveis de `.env.example` em Production. **Nunca** com prefixo `NEXT_PUBLIC_`.
+   `AGENDA_SITE_TOKEN` é o mesmo valor que o servidor do takeat.app usa para chamar `/api/sessoes`.
 3. `AGENDA_VENDEDORES` é opcional: vazia, o segmento MID (`'roleta'`) usa todo o time com agenda
    conectada. Rode `npm run diagnostico` para ver quem pode receber reunião (em 19/10/2026, os 13
    com agenda conectada).
@@ -104,24 +105,67 @@ Atributos opcionais nos dois: `data-vendedor="lucas-segatto"`, `data-tema="claro
 `data-faturamento`, `data-mesas`, `data-name`, `data-email`, `data-phone`, `data-empresa`, `data-canal`. As UTMs e
 o `lead_id` da URL da página são repassados sozinhos. Também dá para usar `TakeatAgenda.abrir({ vendedor })` no JS.
 
-### Depois do formulário de contato (agendamento direto)
+### Depois do formulário de contato: sessão (fonte única)
 
-O formulário do takeat.app já coleta tudo (e envia ao HubSpot). A agenda aceita as respostas com os
-mesmos nomes de campo (`firstname`, `email`, `phone`, `nome_do_restaurante`, `faturamento_contato`,
-`quantidade_mesas`): faturamento e mesas decidem o segmento e de quais vendedores são os horários, e
-o lead **não digita nada de novo** — escolhe o horário e confirma com um clique.
+A agenda é a **fonte única** da distribuição: depois do formulário, ela decide o segmento **e o
+vendedor** do lead. O site só mostra o que ela devolve — o WhatsApp desse vendedor e a agenda dele —,
+então o lead nunca fala com um vendedor e marca com outro, e não responde nada de novo.
 
-```tsx
-// app/layout.tsx do site
-<Script src="https://agenda.takeat.app/embed.js" strategy="afterInteractive" />
-
-// depois do envio do formulário (ex.: em /cadastro-confirmado, com as respostas guardadas)
-window.TakeatAgenda?.abrir(valoresDoFormulario)
-// ou dentro da página: TakeatAgenda.montar(document.getElementById('agenda'), valoresDoFormulario)
+```
+lead envia o formulário → backend do site (já manda ao HubSpot)
+  → POST /api/sessoes na agenda (server-to-server)  → segmento + vendedor + sessão
+  → /cadastro-confirmado?sessao=…  → WhatsApp do vendedor + agenda dele (só escolher e confirmar)
 ```
 
-Sem JavaScript, o mesmo vale como link:
-`https://agenda.takeat.app/?firstname=…&email=…&phone=…&nome_do_restaurante=…&faturamento_contato=…&quantidade_mesas=…`.
+**1. No backend do site**, ao processar o formulário (onde hoje se escolhe o vendedor):
+
+```ts
+const r = await fetch('https://agenda.takeat.app/api/sessoes', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'x-api-token': process.env.AGENDA_SITE_TOKEN },
+  body: JSON.stringify(valoresDoFormulario), // como estão: firstname, email, phone, nome_do_restaurante,
+}) //                                            faturamento_contato, quantidade_mesas, utm_*, page_uri…
+const sessao = await r.json()
+// sessao.vendedor.hubspotOwnerId → owner do contato no HubSpot
+// redireciona para /cadastro-confirmado?sessao=${sessao.sessao}
+```
+
+Resposta (o vendedor escolhido é sempre o mesmo para o mesmo e-mail de lead):
+
+```json
+{
+  "ok": true,
+  "tela": "agenda",                // ou "whatsapp": o segmento não tem horário livre
+  "segmento": "low",
+  "vendedor": {
+    "nome": "Gustavo de Freitas Pinto", "email": "…", "whatsapp": "+55…",
+    "whatsappUrl": "https://wa.me/55…?text=…", "hubspotOwnerId": "100461532"
+  },
+  "primeiroHorario": "2026-10-20T09:00:00-03:00",
+  "sessao": "…",                   // vale 7 dias; cifrado (os dados do lead não ficam legíveis)
+  "url": "https://agenda.takeat.app/?sessao=…",
+  "expiraEm": "…"
+}
+```
+
+**2. Em `/cadastro-confirmado`**, com o `?sessao=` da URL:
+
+```html
+<a href="{vendedor.whatsappUrl}">Falar com {vendedor.nome} no WhatsApp</a>
+<div data-takeat-agenda></div>  <!-- o embed.js lê o ?sessao= da página sozinho -->
+<script src="https://agenda.takeat.app/embed.js" async></script>
+```
+
+Na agenda, o servidor usa o vendedor, as respostas e a origem **da sessão** — o que o navegador
+mandar nesses campos é ignorado. Sessão vencida: a agenda volta ao fluxo normal (pergunta o que
+faltar).
+
+**Sem sessão** (outras páginas), o embed aceita as respostas do formulário direto — mas aí a decisão
+do vendedor fica com a roleta da agenda na hora de agendar:
+
+```js
+window.TakeatAgenda?.abrir(valoresDoFormulario) // firstname, email, phone, nome_do_restaurante, …
+```
 
 Conversão (Google Ads, Meta…):
 
@@ -147,7 +191,7 @@ Com `AGENDA_WEBHOOK_URL`, cada evento chega como `POST` JSON (header `x-webhook-
 
 ```json
 {
-  "evento": "reuniao.agendada | reuniao.remarcada | reuniao.cancelada",
+  "evento": "lead.distribuido | reuniao.agendada | reuniao.remarcada | reuniao.cancelada",
   "reuniao": { "google_id": "…", "titulo": "…", "inicio": "…", "fim": "…", "link_meet": "…" },
   "vendedor": { "id": "…", "nome": "…", "email": "…", "hubspot_owner_id": "…", "whatsapp": "+55…" },
   "lead": { "nome": "…", "email": "…", "telefone": "+55…", "empresa": "…" },
@@ -159,6 +203,9 @@ Com `AGENDA_WEBHOOK_URL`, cada evento chega como `POST` JSON (header `x-webhook-
   "motivo": "imprevisto", "motivo_texto": "Tive um imprevisto", "detalhe": "…"
 }
 ```
+
+`lead.distribuido` (a sessão aberta pelo formulário do site) traz também `tela`, `primeiro_horario` e
+`agenda_url` — dá para o n8n atribuir o owner no HubSpot ou mandar o link da agenda no WhatsApp.
 
 ## Limitações conhecidas
 

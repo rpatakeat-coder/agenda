@@ -1,11 +1,16 @@
-// Webhook opcional (AGENDA_WEBHOOK_URL) — o ponto de saída para o HubSpot (ex.: via n8n): cada
-// reunião agendada, remarcada ou cancelada, com lead, vendedor (e o owner do HubSpot), origem/UTM e
-// o motivo do cancelamento. Nunca derruba o fluxo do lead: falha só vai para o log.
+// Webhook opcional (AGENDA_WEBHOOK_URL) — o ponto de saída para o HubSpot (ex.: via n8n): o lead
+// distribuído pelo formulário do site e cada reunião agendada, remarcada ou cancelada, com lead,
+// vendedor (e o owner do HubSpot), segmento, origem/UTM e o motivo do cancelamento. Nunca derruba o
+// fluxo do lead: falha só vai para o log.
 import 'server-only'
 
 import { configWebhook } from './config'
 
-export type EventoWebhook = 'reuniao.agendada' | 'reuniao.remarcada' | 'reuniao.cancelada'
+export type EventoWebhook =
+  | 'lead.distribuido'
+  | 'reuniao.agendada'
+  | 'reuniao.remarcada'
+  | 'reuniao.cancelada'
 
 export async function avisarWebhook(evento: EventoWebhook, dados: Record<string, unknown>): Promise<void> {
   const { url, segredo } = configWebhook()

@@ -52,6 +52,7 @@ export const MENSAGENS_DE_ERRO = {
   ja_agendado: 'Você já tem uma reunião marcada nesse horário. Confira o convite no seu e-mail.',
   vendedor_nao_encontrado: 'Não encontramos esse consultor. Confira o link que você recebeu.',
   muitas_tentativas: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.',
+  nao_autorizado: 'Token ausente ou inválido.',
   link_invalido: 'Este link de reunião é inválido.',
   reuniao_cancelada: 'Esta reunião já foi cancelada.',
   reuniao_encerrada: 'Esta reunião já aconteceu.',
