@@ -4,7 +4,7 @@ import { ArrowLeft, CircleAlert, LoaderCircle, Pencil } from 'lucide-react'
 import { type SubmitEvent, useRef, useState } from 'react'
 import type { ReuniaoConfirmada, SlotPublico } from '@/lib/contrato'
 import type { LeadInicial } from '@/lib/parametros'
-import type { FaixaFaturamento } from '@/lib/roteamento'
+import type { RespostasDoLead } from '@/lib/roteamento'
 import { type CampoLead, dadosLeadSchema, type Origem } from '@/lib/schemas'
 import { mascararTelefone } from '@/lib/telefone'
 import s from './FormularioLead.module.css'
@@ -63,7 +63,7 @@ interface Props {
   slot: SlotPublico
   inicial: LeadInicial
   vendedor: string | null
-  faturamento: FaixaFaturamento | null
+  respostas: RespostasDoLead
   origem: Origem
   onVoltar: () => void
   onConfirmada: (reuniao: ReuniaoConfirmada) => void
@@ -75,7 +75,7 @@ export function FormularioLead({
   slot,
   inicial,
   vendedor,
-  faturamento,
+  respostas,
   origem,
   onVoltar,
   onConfirmada,
@@ -126,7 +126,8 @@ export function FormularioLead({
         ...lido.data,
         inicio: slot.inicio,
         vendedor: vendedor ?? undefined,
-        faturamento: faturamento ?? undefined,
+        faturamento: respostas.faixa ?? undefined,
+        mesas: respostas.mesas ?? undefined,
         origem,
         site: armadilha.current?.value || undefined,
       },

@@ -21,9 +21,9 @@ navegador ──► /api/disponibilidade ──► Takeat OS: agenda-do-dia (1 p
 - **Roleta:** um horário aparece se pelo menos um vendedor estiver livre. Ao criar, o site confere a
   agenda fresca e tenta os vendedores livres em ordem (menos compromissos no dia primeiro), sempre
   com `vendedor` explícito. Se o OS recusa um (sem permissão de criar, ocupado), tenta o próximo.
-- **Roteamento por faturamento:** a resposta de faturamento do formulário define de quais vendedores
-  aparece a agenda (ver abaixo). A regra é aplicada no servidor: trocar a URL não abre a agenda de
-  outro vendedor.
+- **Distribuição por segmento:** faturamento e mesas (as respostas do formulário) definem o
+  segmento do lead — HIGH, MID ou LOW — e de quais vendedores aparece a agenda (ver abaixo). A regra
+  é aplicada no servidor: trocar a URL não abre a agenda de outro vendedor.
 - **Link direcionado:** `/lucas-segatto` (slug do nome) ou `?vendedor=email@...` mostra só a agenda
   daquela pessoa (não passa pelo roteamento).
 - **Clique duplo:** a tela trava o botão e manda `Idempotency-Key`. O servidor devolve a mesma
@@ -51,47 +51,38 @@ npm run build
 
 1. Importar o repositório na Vercel (framework Next.js) e apontar o domínio, ex.: `agenda.takeat.app`.
 2. Cadastrar as variáveis de `.env.example` em Production. **Nunca** com prefixo `NEXT_PUBLIC_`.
-3. Definir `AGENDA_VENDEDORES` com quem conectou a agenda **com permissão de criar eventos** (em
-   07/10/2026: Gustavo, Lucas, Maria Eduarda, Rodrigo, Vitor). Sem a lista, quem só tem leitura entra
-   na conta de horários livres e o site perde tentativas recusadas pelo OS.
+3. `AGENDA_VENDEDORES` é opcional: vazia, o segmento MID (`'roleta'`) usa todo o time com agenda
+   conectada. Rode `npm run diagnostico` para ver quem pode receber reunião (em 19/10/2026, os 13
+   com agenda conectada).
 4. `AGENDA_EMBED_ORIGENS` e a lista de origens do `<iframe>` são lidas no **build**: mudou, precisa de
    redeploy.
 5. Recomendado: uma regra de rate limit no Firewall da Vercel para `POST /api/*` (o limite do código
    é por instância).
 
-## Roteamento por faturamento
+## Distribuição por segmento
 
-Quem atende cada faixa fica em [`src/config/roteamento.ts`](src/config/roteamento.ts). As faixas são
-as do campo `faturamento_contato` do formulário do takeat.app (a propriedade do HubSpot):
+A distribuição fica em [`src/config/roteamento.ts`](src/config/roteamento.ts), em duas tabelas, a
+partir das respostas do formulário do takeat.app (`faturamento_contato` e `quantidade_mesas`):
 
-| Faixa (rótulo do formulário) | id           |
-| ---------------------------- | ------------ |
-| Até 20 mil                   | `ate-20k`    |
-| Entre 20 e 50 mil            | `20k-50k`    |
-| Entre 50 e 100 mil           | `50k-100k`   |
-| Entre 100 e 200 mil          | `100k-200k`  |
-| Acima de 200 mil             | `acima-200k` |
+| Faturamento                        | Mesas                          | Segmento | Vendedores                                            |
+| ---------------------------------- | ------------------------------ | -------- | ----------------------------------------------------- |
+| Entre 100 e 200 mil, Acima de 200 mil | qualquer                    | **HIGH** | Luiza, Marcelo, Thayrone, Caio, André, Vitor (Vitinho) |
+| Entre 50 e 100 mil                 | qualquer                       | **MID**  | todos                                                 |
+| Até 20 mil, Entre 20 e 50 mil      | De 10 a 30, Acima de 30        | **MID**  | todos                                                 |
+| Até 20 mil, Entre 20 e 50 mil      | Até 10, Não possui mesas       | **LOW**  | Rodrigo, Isabela, Amanda, Gustavo, Maria Eduarda      |
 
-Cada faixa recebe uma lista de e-mails do Inside Sales (só eles aparecem para o lead) ou `'roleta'`
-(o time de `AGENDA_VENDEDORES`). Exemplo, com João até 50 mil e Luiza acima de 100 mil:
-
-```ts
-export const VENDEDORES_POR_FAIXA: VendedoresPorFaixa = {
-  'ate-20k': ['joao.takeat@gmail.com'],
-  '20k-50k': ['joao.takeat@gmail.com'],
-  '50k-100k': 'roleta',
-  '100k-200k': ['luiza.takeat@gmail.com'],
-  'acima-200k': ['luiza.takeat@gmail.com'],
-}
-```
-
-- Com pelo menos uma faixa preenchida, o roteamento liga e a agenda **só aparece com o faturamento
-  informado**: pelo formulário do site, pela URL (`?faturamento=Entre 20 e 50 mil`, `?faturamento=20k-50k`
-  ou o valor em reais, `?faturamento=45000`) ou por uma pergunta na própria página, antes do calendário.
-- Tudo em `'roleta'` = roteamento desligado (a página não pergunta o faturamento).
-- A faixa vai para o convite (o vendedor vê o faturamento), para o webhook e para o link de remarcar.
-  Se o lead trocar de consultor, a troca continua respeitando a faixa.
-- Mudou o arquivo → novo deploy.
+- `SEGMENTO_POR_RESPOSTA`: em que segmento cai cada faixa de faturamento — direto, ou por uma tabela
+  de mesas. `VENDEDORES_POR_SEGMENTO`: e-mails do Inside Sales (só eles aparecem) ou `'roleta'` (o time
+  de `AGENDA_VENDEDORES`; vazia = todos com agenda conectada). Os testes conferem a configuração
+  contra essas regras.
+- A agenda **só aparece com as respostas que decidem o segmento**: vindas do formulário do site, da
+  URL (`?faturamento=Entre 20 e 50 mil&mesas=Até 10 mesas`, os ids `20k-50k`/`ate-10` ou números
+  como `?faturamento=45000&mesas=8`) ou de perguntas na própria página, antes do calendário. As mesas
+  só são perguntadas quando o faturamento depende delas (até 50 mil).
+- Faturamento e mesas vão para o convite (o vendedor vê; o segmento não vai, porque o lead também lê),
+  e faturamento, mesas e segmento vão para o webhook. O link de remarcar guarda as respostas: trocar
+  de consultor continua dentro do segmento.
+- Tudo em `'roleta'` = distribuição desligada (a página não pergunta nada). Mudou o arquivo → novo deploy.
 
 ## Colocar no takeat.app
 
@@ -110,15 +101,15 @@ Popup (qualquer botão ou link da página):
 ```
 
 Atributos opcionais nos dois: `data-vendedor="lucas-segatto"`, `data-tema="claro|escuro"`,
-`data-faturamento`, `data-name`, `data-email`, `data-phone`, `data-empresa`, `data-canal`. As UTMs e
+`data-faturamento`, `data-mesas`, `data-name`, `data-email`, `data-phone`, `data-empresa`, `data-canal`. As UTMs e
 o `lead_id` da URL da página são repassados sozinhos. Também dá para usar `TakeatAgenda.abrir({ vendedor })` no JS.
 
 ### Depois do formulário de contato (agendamento direto)
 
 O formulário do takeat.app já coleta tudo (e envia ao HubSpot). A agenda aceita as respostas com os
-mesmos nomes de campo (`firstname`, `email`, `phone`, `nome_do_restaurante`, `faturamento_contato`):
-a faixa de faturamento decide de quais vendedores são os horários, e o lead **não digita nada de
-novo** — escolhe o horário e confirma com um clique.
+mesmos nomes de campo (`firstname`, `email`, `phone`, `nome_do_restaurante`, `faturamento_contato`,
+`quantidade_mesas`): faturamento e mesas decidem o segmento e de quais vendedores são os horários, e
+o lead **não digita nada de novo** — escolhe o horário e confirma com um clique.
 
 ```tsx
 // app/layout.tsx do site
@@ -130,7 +121,7 @@ window.TakeatAgenda?.abrir(valoresDoFormulario)
 ```
 
 Sem JavaScript, o mesmo vale como link:
-`https://agenda.takeat.app/?firstname=…&email=…&phone=…&nome_do_restaurante=…&faturamento_contato=…`.
+`https://agenda.takeat.app/?firstname=…&email=…&phone=…&nome_do_restaurante=…&faturamento_contato=…&quantidade_mesas=…`.
 
 Conversão (Google Ads, Meta…):
 
@@ -161,6 +152,8 @@ Com `AGENDA_WEBHOOK_URL`, cada evento chega como `POST` JSON (header `x-webhook-
   "vendedor": { "id": "…", "nome": "…", "email": "…", "hubspot_owner_id": "…", "whatsapp": "+55…" },
   "lead": { "nome": "…", "email": "…", "telefone": "+55…", "empresa": "…" },
   "faturamento": { "faixa": "20k-50k", "rotulo": "Entre 20 e 50 mil" },
+  "mesas": { "faixa": "ate-10", "rotulo": "Até 10 mesas" },
+  "segmento": "low",
   "origem": { "canal": "whatsapp_sdr", "lead_id": "…", "utm_source": "…" },
   "gestao_url": "https://agenda.takeat.app/reuniao/…",
   "motivo": "imprevisto", "motivo_texto": "Tive um imprevisto", "detalhe": "…"

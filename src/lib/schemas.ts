@@ -53,6 +53,8 @@ export const agendamentoSchema = dadosLeadSchema.extend({
   vendedor: z.string().trim().max(120).optional(),
   /** Faixa do formulário ("Entre 20 e 50 mil"), id ("20k-50k") ou valor em reais. */
   faturamento: z.string().trim().max(60).optional(),
+  /** Quantidade de mesas do formulário ("De 10 a 30 Mesas"), id ("10-30") ou o número. */
+  mesas: z.string().trim().max(60).optional(),
   origem: origemSchema.optional(),
   /** Honeypot: campo escondido que só robô preenche. */
   site: z.string().max(500).optional(),

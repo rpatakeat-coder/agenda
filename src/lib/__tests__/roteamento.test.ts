@@ -1,23 +1,120 @@
 import { describe, expect, it } from 'vitest'
-import { VENDEDORES_POR_FAIXA } from '@/config/roteamento'
+import { SEGMENTO_POR_RESPOSTA, VENDEDORES_POR_SEGMENTO } from '@/config/roteamento'
 import {
-  FAIXAS_DE_FATURAMENTO,
+  FAIXAS_DE_MESAS,
+  type FaixaFaturamento,
+  type FaixaMesas,
+  faixaDeMesas,
   faixaDoFaturamento,
+  faixasQueDependemDasMesas,
   permitidosParaLead,
   roteamentoAtivo,
-  type VendedoresPorFaixa,
+  segmentoDoLead,
+  type VendedoresPorSegmento,
   valorEmReais,
 } from '../roteamento'
 
-// O exemplo do time: João atende até 50 mil, Luiza acima de 100 mil, o meio fica na roleta.
-const MAPA: VendedoresPorFaixa = {
-  'ate-20k': ['joao@takeat.app'],
-  '20k-50k': ['joao@takeat.app'],
-  '50k-100k': 'roleta',
-  '100k-200k': ['luiza@takeat.app'],
-  'acima-200k': ['luiza@takeat.app', 'maria@takeat.app'],
-}
-const ROLETA = ['joao@takeat.app', 'luiza@takeat.app', 'maria@takeat.app', 'lucas@takeat.app']
+const ROLETA = ['todo@takeat.app', 'o@takeat.app', 'time@takeat.app']
+
+/** Quem recebe o lead com a configuração de verdade (src/config/roteamento.ts). */
+const quemRecebe = (faixa: FaixaFaturamento | null, mesas: FaixaMesas | null = null) =>
+  permitidosParaLead({
+    regra: SEGMENTO_POR_RESPOSTA,
+    vendedores: VENDEDORES_POR_SEGMENTO,
+    roleta: ROLETA,
+    faixa,
+    mesas,
+  })
+
+const HIGH = [
+  'luizasodre.takeat@gmail.com',
+  'marcelo.takeat@gmail.com',
+  'thayrone.takeat@gmail.com',
+  'caiocaiado.takeat@gmail.com',
+  'andrerocon.takeat@gmail.com',
+  'vitorquintela.takeat@gmail.com',
+]
+const LOW = [
+  'rodrigoesteves.takeat@gmail.com',
+  'isabelallaraujo.takeat@gmail.com',
+  'amanda.takeat@gmail.com',
+  'gustavofreitas.takeat@gmail.com',
+  'mariacosmo.takeat@gmail.com',
+]
+
+describe('distribuição definida pelo comercial (19/10/2026)', () => {
+  it('HIGH: acima de 100 mil → Luiza, Marcelo, Thayrone, Caio, André e Vitinho', () => {
+    expect(quemRecebe('100k-200k')).toEqual(HIGH)
+    expect(quemRecebe('acima-200k')).toEqual(HIGH)
+    expect(quemRecebe('acima-200k', 'ate-10')).toEqual(HIGH) // mesas não mudam o HIGH
+  })
+
+  it('MID: entre 50 e 100 mil → todos', () => {
+    expect(quemRecebe('50k-100k')).toBe(ROLETA)
+    expect(quemRecebe('50k-100k', 'ate-10')).toBe(ROLETA)
+  })
+
+  it('até 50 mil com 10 mesas ou mais → MID (todos)', () => {
+    for (const faixa of ['ate-20k', '20k-50k'] as const) {
+      expect(quemRecebe(faixa, '10-30')).toBe(ROLETA)
+      expect(quemRecebe(faixa, 'acima-30')).toBe(ROLETA)
+    }
+  })
+
+  it('LOW: até 50 mil com até 10 mesas ou sem mesas → Rodrigo, Isabela, Amanda, Gustavo e Maria Eduarda', () => {
+    for (const faixa of ['ate-20k', '20k-50k'] as const) {
+      expect(quemRecebe(faixa, 'ate-10')).toEqual(LOW)
+      expect(quemRecebe(faixa, 'sem-mesas')).toEqual(LOW)
+    }
+  })
+
+  it('até 50 mil sem dizer as mesas: a página pergunta (não cai na roleta)', () => {
+    expect(quemRecebe('ate-20k')).toBe('mesas_obrigatorio')
+    expect(quemRecebe('20k-50k')).toBe('mesas_obrigatorio')
+    expect(faixasQueDependemDasMesas(SEGMENTO_POR_RESPOSTA)).toEqual(['ate-20k', '20k-50k'])
+  })
+
+  it('sem faturamento: não tem agenda', () => {
+    expect(quemRecebe(null)).toBe('faturamento_obrigatorio')
+  })
+
+  it('ninguém está em HIGH e LOW ao mesmo tempo; e-mails válidos', () => {
+    expect(HIGH.filter((e) => LOW.includes(e))).toEqual([])
+    for (const quem of Object.values(VENDEDORES_POR_SEGMENTO)) {
+      if (quem === 'roleta') continue
+      for (const email of quem) expect(email).toMatch(/^[a-z0-9.]+@[a-z0-9.]+\.[a-z]+$/)
+    }
+  })
+})
+
+describe('permitidosParaLead', () => {
+  const tudoRoleta: VendedoresPorSegmento = { high: 'roleta', mid: 'roleta', low: 'roleta' }
+
+  it('com tudo em roleta, o roteamento fica desligado e nada é exigido', () => {
+    expect(roteamentoAtivo(tudoRoleta)).toBe(false)
+    expect(roteamentoAtivo(VENDEDORES_POR_SEGMENTO)).toBe(true)
+    const r = permitidosParaLead({
+      regra: SEGMENTO_POR_RESPOSTA,
+      vendedores: tudoRoleta,
+      roleta: ROLETA,
+      faixa: null,
+      mesas: null,
+    })
+    expect(r).toBe(ROLETA)
+  })
+
+  it('transferência de reunião sem respostas (link direto) aceita a roleta', () => {
+    const base = { regra: SEGMENTO_POR_RESPOSTA, vendedores: VENDEDORES_POR_SEGMENTO, roleta: ROLETA }
+    expect(permitidosParaLead({ ...base, faixa: null, mesas: null, semResposta: 'roleta' })).toBe(ROLETA)
+    expect(permitidosParaLead({ ...base, faixa: '20k-50k', mesas: null, semResposta: 'roleta' })).toBe(ROLETA)
+  })
+
+  it('segmentoDoLead', () => {
+    expect(segmentoDoLead(SEGMENTO_POR_RESPOSTA, '20k-50k', 'ate-10')).toBe('low')
+    expect(segmentoDoLead(SEGMENTO_POR_RESPOSTA, '20k-50k', null)).toBe('faltam_mesas')
+    expect(segmentoDoLead(SEGMENTO_POR_RESPOSTA, 'acima-200k', null)).toBe('high')
+  })
+})
 
 describe('faixaDoFaturamento', () => {
   it('lê o rótulo exato do formulário do site (faturamento_contato)', () => {
@@ -28,12 +125,9 @@ describe('faixaDoFaturamento', () => {
     expect(faixaDoFaturamento('Acima de 200 mil')).toBe('acima-200k')
   })
 
-  it('aceita o rótulo sem acento ou caixa, e o id da faixa', () => {
+  it('aceita sem acento ou caixa, o id e o valor em reais, com os limites de cada faixa', () => {
     expect(faixaDoFaturamento('ATE 20 MIL')).toBe('ate-20k')
     expect(faixaDoFaturamento(' 20k-50k ')).toBe('20k-50k')
-  })
-
-  it('aceita o valor em reais (IA SDR), com os limites de cada faixa', () => {
     expect(faixaDoFaturamento('20000')).toBe('ate-20k')
     expect(faixaDoFaturamento('20001')).toBe('20k-50k')
     expect(faixaDoFaturamento('R$ 50.000,00')).toBe('20k-50k')
@@ -50,46 +144,26 @@ describe('faixaDoFaturamento', () => {
   })
 })
 
-describe('permitidosParaLead', () => {
-  it('lead até 50 mil só vê a agenda do João', () => {
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: '20k-50k' })).toEqual(['joao@takeat.app'])
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: 'ate-20k' })).toEqual(['joao@takeat.app'])
+describe('faixaDeMesas', () => {
+  it('lê o texto exato do formulário do site (quantidade_mesas)', () => {
+    expect(faixaDeMesas('Até 10 mesas')).toBe('ate-10')
+    expect(faixaDeMesas('De 10 a 30 Mesas')).toBe('10-30')
+    expect(faixaDeMesas('Acima de 30 Mesas')).toBe('acima-30')
+    expect(faixaDeMesas('Meu estabelecimento não possui mesas')).toBe('sem-mesas')
   })
 
-  it('acima de 100 mil vê só quem atende a faixa', () => {
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: '100k-200k' })).toEqual([
-      'luiza@takeat.app',
-    ])
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: 'acima-200k' })).toEqual([
-      'luiza@takeat.app',
-      'maria@takeat.app',
-    ])
+  it('aceita o rótulo da página, o id e o número de mesas', () => {
+    for (const f of FAIXAS_DE_MESAS) expect(faixaDeMesas(f.rotulo)).toBe(f.id)
+    expect(faixaDeMesas('10-30')).toBe('10-30')
+    expect(faixaDeMesas('0')).toBe('sem-mesas')
+    expect(faixaDeMesas('10')).toBe('ate-10')
+    expect(faixaDeMesas('11')).toBe('10-30')
+    expect(faixaDeMesas('30')).toBe('10-30')
+    expect(faixaDeMesas('31')).toBe('acima-30')
   })
 
-  it("faixa em 'roleta' usa a lista geral", () => {
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: '50k-100k' })).toBe(ROLETA)
-  })
-
-  it('com o roteamento ligado, sem faixa não tem agenda (a não ser que aceite a roleta)', () => {
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: null })).toBe('faturamento_obrigatorio')
-    expect(permitidosParaLead({ mapa: MAPA, roleta: ROLETA, faixa: null, semFaixa: 'roleta' })).toBe(ROLETA)
-  })
-
-  it('com tudo em roleta, o roteamento fica desligado e o faturamento não é exigido', () => {
-    const tudoRoleta = Object.fromEntries(
-      FAIXAS_DE_FATURAMENTO.map((f) => [f.id, 'roleta']),
-    ) as unknown as VendedoresPorFaixa
-    expect(roteamentoAtivo(tudoRoleta)).toBe(false)
-    expect(roteamentoAtivo(MAPA)).toBe(true)
-    expect(permitidosParaLead({ mapa: tudoRoleta, roleta: ROLETA, faixa: null })).toBe(ROLETA)
-  })
-})
-
-describe('configuração (src/config/roteamento.ts)', () => {
-  it('só tem e-mails válidos ou roleta', () => {
-    for (const regra of Object.values(VENDEDORES_POR_FAIXA)) {
-      if (regra === 'roleta') continue
-      for (const vendedor of regra) expect(vendedor).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-    }
+  it('o que não dá para entender fica sem resposta', () => {
+    expect(faixaDeMesas('várias')).toBeNull()
+    expect(faixaDeMesas(undefined)).toBeNull()
   })
 })

@@ -11,6 +11,7 @@ const dados: DadosReuniao = {
   f: '2026-10-21T10:00:00-03:00',
   l: { n: 'Teresa', e: 'teresa@padaria.com', t: '+5511987654321', r: 'Padaria Central' },
   fx: '20k-50k',
+  mx: 'ate-10',
 }
 
 describe('link de remarcar/cancelar', () => {
@@ -18,6 +19,11 @@ describe('link de remarcar/cancelar', () => {
     const token = selarReuniao(dados, SEGREDO)
     expect(token).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(abrirReuniao(token, SEGREDO)).toEqual(dados)
+  })
+
+  it('link de antes das mesas (sem `mx`) continua abrindo', () => {
+    const { mx: _, ...antigo } = dados
+    expect(abrirReuniao(selarReuniao(antigo, SEGREDO), SEGREDO)).toEqual(antigo)
   })
 
   it('não deixa os dados do lead legíveis na URL', () => {

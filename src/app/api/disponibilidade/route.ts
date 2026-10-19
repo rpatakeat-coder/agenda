@@ -1,10 +1,11 @@
 // GET /api/disponibilidade — horários livres da janela de agendamento.
-//   ?faturamento=20k-50k         faixa do lead: só os vendedores dela (src/config/roteamento.ts)
+//   ?faturamento=20k-50k&mesas=ate-10   respostas do lead: só os vendedores do segmento dele
+//                                (src/config/roteamento.ts)
 //   ?vendedor=caio-caiado        link direcionado (nome/slug ou e-mail)
 //   ?reuniao=<token>             remarcação: só o vendedor da reunião, sem contar a própria reunião
 //   ?reuniao=<token>&transferir=1  remarcação com outro consultor (roleta)
 // Só sai início e fim de horários livres — nunca compromisso de vendedor.
-import { faixaDoFaturamento } from '@/lib/roteamento'
+import { faixaDeMesas, faixaDoFaturamento } from '@/lib/roteamento'
 import { segredo } from '@/lib/servidor/config'
 import { consultarDisponibilidade, type OpcoesDeAgenda } from '@/lib/servidor/disponibilidade'
 import { respostaDeFalha, respostaErro, respostaOk } from '@/lib/servidor/http'
@@ -23,13 +24,14 @@ export async function GET(pedido: Request): Promise<Response> {
     let opcoes: OpcoesDeAgenda = {
       vendedor: params.get('vendedor')?.trim().slice(0, 120) || null,
       faixa: faixaDoFaturamento(params.get('faturamento')),
+      mesas: faixaDeMesas(params.get('mesas')),
     }
     if (token) {
       const dados = abrirReuniao(token, segredo('AGENDA_LINK_SECRET'))
       if (!dados) return respostaErro('link_invalido', 404)
       opcoes =
         params.get('transferir') === '1'
-          ? { faixa: dados.fx, semFaixa: 'roleta' }
+          ? { faixa: dados.fx, mesas: dados.mx ?? null, semResposta: 'roleta' }
           : {
               vendedor: dados.v,
               ignorar: { email: dados.v, inicioMs: Date.parse(dados.i), fimMs: Date.parse(dados.f) },

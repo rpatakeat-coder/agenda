@@ -47,3 +47,7 @@ export const vendedorDaUrl = (busca: ParametrosDaUrl): string | null =>
 /** A resposta de faturamento do formulário do site (`faturamento_contato`) ou do link. */
 export const faturamentoDaUrl = (busca: ParametrosDaUrl): string | null =>
   primeiro(busca, 'faturamento', 'faturamento_contato') ?? null
+
+/** A quantidade de mesas do formulário do site (`quantidade_mesas`) ou do link. */
+export const mesasDaUrl = (busca: ParametrosDaUrl): string | null =>
+  primeiro(busca, 'mesas', 'quantidade_mesas') ?? null

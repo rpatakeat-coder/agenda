@@ -92,8 +92,11 @@
     background-color 200ms var(--ease);
 }
 
-.motivo:hover {
-  border-color: var(--ink-500);
+/* Só com mouse: no celular o hover "gruda" depois do toque e parece uma opção já escolhida. */
+@media (hover: hover) {
+  .motivo:hover {
+    border-color: var(--ink-500);
+  }
 }
 
 .motivo input {

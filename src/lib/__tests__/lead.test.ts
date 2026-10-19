@@ -83,9 +83,13 @@ describe('convite', () => {
       vendedor: 'Lucas',
       linkDeGestao: 'https://agenda.takeat.app/reuniao/x',
       faturamento: 'Entre 20 e 50 mil',
+      mesas: 'Até 10 mesas',
     })
     expect(com).toContain('Precisa remarcar ou cancelar? https://agenda.takeat.app/reuniao/x')
     expect(com).toContain('Faturamento mensal: Entre 20 e 50 mil')
+    expect(com).toContain('Mesas: Até 10 mesas')
+    // O segmento (HIGH/MID/LOW) é interno: não vai para o convite, que o lead também lê.
+    expect(com).not.toMatch(/high|mid|low|segmento/i)
   })
 })
 

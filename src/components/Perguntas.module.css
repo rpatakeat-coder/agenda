@@ -56,14 +56,17 @@
   transition: color 200ms var(--ease);
 }
 
-.opcao:hover {
-  border-color: var(--brand-500);
-  background: var(--brand-sutil);
-  color: var(--brand-texto);
-}
+/* Só com mouse: no celular o hover "gruda" depois do toque e parece uma opção já escolhida. */
+@media (hover: hover) {
+  .opcao:hover {
+    border-color: var(--brand-500);
+    background: var(--brand-sutil);
+    color: var(--brand-texto);
+  }
 
-.opcao:hover svg {
-  color: var(--brand-texto);
+  .opcao:hover svg {
+    color: var(--brand-texto);
+  }
 }
 
 .opcao:active {

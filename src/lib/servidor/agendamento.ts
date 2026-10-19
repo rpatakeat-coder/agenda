@@ -8,9 +8,10 @@
 import 'server-only'
 
 import { after } from 'next/server'
+import { SEGMENTO_POR_RESPOSTA } from '@/config/roteamento'
 import type { ReuniaoConfirmada, ReuniaoPublica } from '@/lib/contrato'
 import { descricaoDoConvite, tituloDoConvite } from '@/lib/convite'
-import { type FaixaFaturamento, rotuloDaFaixa } from '@/lib/roteamento'
+import { type RespostasDoLead, rotuloDaFaixa, rotuloDasMesas, segmentoDoLead } from '@/lib/roteamento'
 import { type DadosLead, MOTIVOS_CANCELAMENTO, type MotivoCancelamento, type Origem } from '@/lib/schemas'
 import { dataBrasilia } from '@/lib/tempo'
 import { regrasDaAgenda, segredo, tituloBase } from './config'
@@ -51,11 +52,19 @@ const leadDe = (dados: DadosReuniao): DadosLead => ({
   empresa: dados.l.r,
 })
 
+const respostasDe = (dados: DadosReuniao): RespostasDoLead => ({ faixa: dados.fx, mesas: dados.mx ?? null })
+
+/** As respostas em texto, para o convite (o vendedor vê; o segmento não vai — o lead também lê). */
+const respostasNoConvite = ({ faixa, mesas }: RespostasDoLead) => ({
+  faturamento: faixa && rotuloDaFaixa(faixa),
+  mesas: mesas && rotuloDasMesas(mesas),
+})
+
 function dadosDaReuniao(
   r: RespostaEvento,
   emailVendedor: string,
   lead: DadosLead,
-  faixa: FaixaFaturamento | null,
+  respostas: RespostasDoLead,
 ): DadosReuniao {
   return {
     g: r.evento.google_id,
@@ -64,7 +73,8 @@ function dadosDaReuniao(
     i: r.evento.inicio,
     f: r.evento.fim,
     l: { n: lead.nome, e: lead.email, t: lead.telefone, r: lead.empresa },
-    fx: faixa,
+    fx: respostas.faixa,
+    mx: respostas.mesas,
   }
 }
 
@@ -82,32 +92,38 @@ const confirmada = (
   gestaoUrl,
 })
 
-/** O que o webhook leva de uma reunião — com o owner do HubSpot do vendedor. */
+/** O que o webhook leva de uma reunião — com o owner do HubSpot do vendedor e o segmento do lead. */
 const paraWebhook = (
   r: RespostaEvento,
   lead: DadosLead,
-  { origem, faixa }: { origem?: Origem; faixa?: FaixaFaturamento | null } = {},
-) => ({
-  reuniao: {
-    google_id: r.evento.google_id,
-    titulo: r.evento.titulo ?? null,
-    inicio: r.evento.inicio,
-    fim: r.evento.fim,
-    link_meet: r.evento.link_meet ?? null,
-  },
-  vendedor: r.vendedor,
-  lead,
-  faturamento: faixa ? { faixa, rotulo: rotuloDaFaixa(faixa) } : null,
-  origem: origem ?? null,
-})
+  { origem, respostas }: { origem?: Origem; respostas?: RespostasDoLead } = {},
+) => {
+  const { faixa, mesas } = respostas ?? { faixa: null, mesas: null }
+  const segmento = faixa ? segmentoDoLead(SEGMENTO_POR_RESPOSTA, faixa, mesas) : null
+  return {
+    reuniao: {
+      google_id: r.evento.google_id,
+      titulo: r.evento.titulo ?? null,
+      inicio: r.evento.inicio,
+      fim: r.evento.fim,
+      link_meet: r.evento.link_meet ?? null,
+    },
+    vendedor: r.vendedor,
+    lead,
+    faturamento: faixa ? { faixa, rotulo: rotuloDaFaixa(faixa) } : null,
+    mesas: mesas ? { faixa: mesas, rotulo: rotuloDasMesas(mesas) } : null,
+    segmento: segmento === 'faltam_mesas' ? null : segmento,
+    origem: origem ?? null,
+  }
+}
 
 export interface PedidoDeReuniao {
   lead: DadosLead
   inicio: string
   vendedor?: string | null
-  /** Faixa de faturamento do lead (define quem pode recebê-lo). */
-  faixa?: FaixaFaturamento | null
-  semFaixa?: 'erro' | 'roleta'
+  /** Faturamento e mesas: definem o segmento e quem pode receber o lead. */
+  respostas?: RespostasDoLead
+  semResposta?: 'erro' | 'roleta'
   origem?: Origem
 }
 
@@ -122,12 +138,12 @@ export async function agendar(
   aviso: Aviso = { evento: 'reuniao.agendada' },
 ): Promise<ReuniaoConfirmada> {
   const regras = regrasDaAgenda()
-  const faixa = pedido.faixa ?? null
-  const faturamento = faixa && rotuloDaFaixa(faixa)
+  const respostas = pedido.respostas ?? { faixa: null, mesas: null }
+  const noConvite = respostasNoConvite(respostas)
   const { slot, agenda, data } = await conferirHorario(pedido.inicio, {
     vendedor: pedido.vendedor,
-    faixa,
-    semFaixa: pedido.semFaixa,
+    ...respostas,
+    semResposta: pedido.semResposta,
   })
   const titulo = tituloDoConvite(tituloBase(), pedido.lead)
   // Trava entre instâncias contra clique duplo: o OS já mostra na hora o evento criado pela rota.
@@ -143,7 +159,7 @@ export async function agendar(
         inicio: slot.horario,
         duracao: regras.duracaoMin,
         convidados: [pedido.lead.email],
-        descricao: descricaoDoConvite(pedido.lead, { vendedor: vendedor.nome, faturamento }),
+        descricao: descricaoDoConvite(pedido.lead, { vendedor: vendedor.nome, ...noConvite }),
         vendedor: vendedor.email,
       })
     } catch (e) {
@@ -153,7 +169,7 @@ export async function agendar(
     }
 
     esquecerAgenda(data)
-    const dados = dadosDaReuniao(criado, vendedor.email, pedido.lead, faixa)
+    const dados = dadosDaReuniao(criado, vendedor.email, pedido.lead, respostas)
     const gestaoUrl = linkDeGestao(dados, ctx.baseUrl)
     after(() =>
       Promise.all([
@@ -164,12 +180,12 @@ export async function agendar(
           descricao: descricaoDoConvite(pedido.lead, {
             vendedor: dados.vn,
             linkDeGestao: gestaoUrl,
-            faturamento,
+            ...noConvite,
           }),
           avisar_convidados: false,
         }).catch((e) => console.error('[agendar] link de gestão no convite:', mensagem(e))),
         avisarWebhook(aviso.evento, {
-          ...paraWebhook(criado, pedido.lead, { origem: pedido.origem, faixa }),
+          ...paraWebhook(criado, pedido.lead, { origem: pedido.origem, respostas }),
           gestao_url: gestaoUrl,
           ...aviso.extra,
         }),
@@ -236,10 +252,16 @@ export async function remarcar(
 
   if (pedido.transferir) {
     // Outro consultor (com a confirmação explícita do lead): primeiro garante a nova, depois
-    // cancela a antiga — o lead nunca fica sem reunião. Continua na faixa de faturamento do lead;
-    // reunião marcada pelo link direto de um vendedor (sem faixa) vai para a roleta.
+    // cancela a antiga — o lead nunca fica sem reunião. Continua no segmento do lead; reunião
+    // marcada pelo link direto de um vendedor (sem respostas) vai para a roleta.
     const nova = await agendar(
-      { lead, inicio: pedido.inicio, faixa: dados.fx, semFaixa: 'roleta', origem: { canal: 'remarcacao' } },
+      {
+        lead,
+        inicio: pedido.inicio,
+        respostas: respostasDe(dados),
+        semResposta: 'roleta',
+        origem: { canal: 'remarcacao' },
+      },
       ctx,
       { evento: 'reuniao.remarcada', extra: { transferida: true, de } },
     )
@@ -286,7 +308,7 @@ export async function remarcar(
   const gestaoUrl = linkDeGestao(novos, ctx.baseUrl)
   after(() =>
     avisarWebhook('reuniao.remarcada', {
-      ...paraWebhook(editado, lead, { faixa: dados.fx }),
+      ...paraWebhook(editado, lead, { respostas: respostasDe(dados) }),
       de,
       gestao_url: gestaoUrl,
     }),
@@ -322,7 +344,7 @@ export async function cancelar(
     const r = cancelado
     after(() =>
       avisarWebhook('reuniao.cancelada', {
-        ...paraWebhook(r, leadDe(dados), { faixa: dados.fx }),
+        ...paraWebhook(r, leadDe(dados), { respostas: respostasDe(dados) }),
         motivo,
         motivo_texto: MOTIVOS_CANCELAMENTO[motivo],
         detalhe: detalhe || null,

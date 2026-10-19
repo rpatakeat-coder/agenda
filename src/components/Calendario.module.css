@@ -94,8 +94,11 @@
   cursor: pointer;
 }
 
-.livre:hover {
-  background: color-mix(in srgb, var(--brand-500) 18%, var(--surface));
+/* Só com mouse: no celular o hover "gruda" depois do toque e parece uma opção já escolhida. */
+@media (hover: hover) {
+  .livre:hover {
+    background: color-mix(in srgb, var(--brand-500) 18%, var(--surface));
+  }
 }
 
 .livre:active {

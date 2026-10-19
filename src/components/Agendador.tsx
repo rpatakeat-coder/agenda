@@ -4,39 +4,54 @@ import { useState } from 'react'
 import type { ReuniaoConfirmada, SlotPublico } from '@/lib/contrato'
 import { dataPorExtenso, faixaDeHorario, nomeDoFuso } from '@/lib/formatacao'
 import type { LeadInicial } from '@/lib/parametros'
-import { type FaixaFaturamento, rotuloDaFaixa } from '@/lib/roteamento'
+import { type FaixaFaturamento, type RespostasDoLead, rotuloDaFaixa, rotuloDasMesas } from '@/lib/roteamento'
 import type { Origem } from '@/lib/schemas'
 import { Confirmacao } from './Confirmacao'
 import { FormularioLead } from './FormularioLead'
 import { useDisponibilidade, useFuso } from './hooks'
 import { InfoDaReuniao, Moldura } from './Moldura'
-import { FaixaEscolhida, PerguntaFaturamento } from './PerguntaFaturamento'
+import { PerguntaFaturamento, PerguntaMesas, RespostasEscolhidas } from './Perguntas'
 import { mostrarTopo } from './PonteEmbed'
 import { SeletorHorario } from './SeletorHorario'
 
 interface Props {
   /** Link direcionado (/caio-caiado ou ?vendedor=); null = roleta. */
   vendedor: string | null
-  /** Faixa de faturamento que veio do formulário do site ou do link. */
-  faixa: FaixaFaturamento | null
-  /** Roteamento por faturamento ligado: sem faixa, pergunta antes do calendário. */
-  perguntarFaturamento: boolean
+  /** Faturamento e mesas que vieram do formulário do site ou do link. */
+  respostas: RespostasDoLead
+  /** Roteamento ligado: o que perguntar antes do calendário quando não veio. */
+  perguntar: { faturamento: boolean; mesasPara: readonly FaixaFaturamento[] }
   lead: LeadInicial
   origem: Origem
   duracaoMin: number
 }
 
-/** O fluxo de agendamento: (faturamento →) dia → horário → dados → confirmação. */
-export function Agendador({ vendedor, perguntarFaturamento, lead, origem, duracaoMin, ...props }: Props) {
-  const [faixa, setFaixa] = useState(props.faixa)
-  // Faixa respondida aqui (e não no formulário do site): o lead pode trocar.
-  const [faixaNaPagina, setFaixaNaPagina] = useState(false)
-  const precisaFaixa = perguntarFaturamento && !vendedor && !faixa
-  const { estado, recarregar } = useDisponibilidade({ vendedor, faturamento: faixa }, !precisaFaixa)
+const NENHUMA_NA_PAGINA = { faixa: false, mesas: false }
+
+/** O fluxo de agendamento: (faturamento → mesas →) dia → horário → dados → confirmação. */
+export function Agendador({ vendedor, perguntar, lead, origem, duracaoMin, ...props }: Props) {
+  const [respostas, setRespostas] = useState(props.respostas)
+  // Respondidas aqui (e não no formulário do site): o lead pode trocar.
+  const [naPagina, setNaPagina] = useState(NENHUMA_NA_PAGINA)
+  const { faixa, mesas } = respostas
+  const falta = vendedor
+    ? null
+    : perguntar.faturamento && !faixa
+      ? 'faturamento'
+      : faixa && perguntar.mesasPara.includes(faixa) && !mesas
+        ? 'mesas'
+        : null
+  const { estado, recarregar } = useDisponibilidade({ vendedor, faturamento: faixa, mesas }, !falta)
   const fuso = useFuso()
   const [slot, setSlot] = useState<SlotPublico | null>(null)
   const [reuniao, setReuniao] = useState<ReuniaoConfirmada | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+
+  function responder(resposta: Partial<RespostasDoLead>) {
+    setRespostas((r) => ({ ...r, ...resposta }))
+    setNaPagina((n) => ({ faixa: n.faixa || 'faixa' in resposta, mesas: n.mesas || 'mesas' in resposta }))
+    mostrarTopo()
+  }
 
   if (reuniao)
     return (
@@ -53,18 +68,21 @@ export function Agendador({ vendedor, perguntarFaturamento, lead, origem, duraca
   }
   const lateral = <InfoDaReuniao duracaoMin={duracaoMin} vendedor={nomeDoVendedor} horario={horario} />
 
-  if (precisaFaixa)
+  if (falta)
     return (
       <Moldura lateral={lateral}>
-        <PerguntaFaturamento
-          onEscolher={(f) => {
-            setFaixa(f)
-            setFaixaNaPagina(true)
-            mostrarTopo()
-          }}
-        />
+        {falta === 'faturamento' ? (
+          <PerguntaFaturamento onEscolher={(f) => responder({ faixa: f })} />
+        ) : (
+          <PerguntaMesas onEscolher={(m) => responder({ mesas: m })} />
+        )}
       </Moldura>
     )
+
+  const respondidasAqui = [
+    ...(naPagina.faixa && faixa ? [{ rotulo: 'Faturamento mensal', valor: rotuloDaFaixa(faixa) }] : []),
+    ...(naPagina.mesas && mesas ? [{ rotulo: 'Mesas', valor: rotuloDasMesas(mesas) }] : []),
+  ]
 
   return (
     <Moldura lateral={lateral}>
@@ -74,7 +92,7 @@ export function Agendador({ vendedor, perguntarFaturamento, lead, origem, duraca
           slot={slot}
           inicial={lead}
           vendedor={vendedor}
-          faturamento={faixa}
+          respostas={respostas}
           origem={origem}
           onVoltar={() => setSlot(null)}
           onConfirmada={(r) => {
@@ -93,12 +111,16 @@ export function Agendador({ vendedor, perguntarFaturamento, lead, origem, duraca
           fuso={fuso}
           aviso={aviso}
           extra={
-            faixa &&
-            faixaNaPagina && (
-              <FaixaEscolhida
-                faixa={rotuloDaFaixa(faixa)}
+            respondidasAqui.length > 0 && (
+              <RespostasEscolhidas
+                respostas={respondidasAqui}
                 onAlterar={() => {
-                  setFaixa(null)
+                  // Volta só o que foi respondido aqui; o que veio do formulário do site fica.
+                  setRespostas((r) => ({
+                    faixa: naPagina.faixa ? null : r.faixa,
+                    mesas: naPagina.mesas ? null : r.mesas,
+                  }))
+                  setNaPagina(NENHUMA_NA_PAGINA)
                   setAviso(null)
                 }}
               />

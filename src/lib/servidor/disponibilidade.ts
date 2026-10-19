@@ -1,10 +1,10 @@
 // Horários livres da janela de agendamento, a partir do agenda-do-dia do OS (um pedido por dia).
 import 'server-only'
 
-import { VENDEDORES_POR_FAIXA } from '@/config/roteamento'
+import { SEGMENTO_POR_RESPOSTA, VENDEDORES_POR_SEGMENTO } from '@/config/roteamento'
 import { type AgendaDoDia, type FiltroVendedores, resolverVendedor, vendedoresElegiveis } from '@/lib/agenda'
 import type { Disponibilidade } from '@/lib/contrato'
-import { type FaixaFaturamento, permitidosParaLead } from '@/lib/roteamento'
+import { type FaixaFaturamento, type FaixaMesas, permitidosParaLead } from '@/lib/roteamento'
 import { calcularSlots, diasDaJanela, type SlotCalculado } from '@/lib/slots'
 import { dataBrasilia, isoBrasilia } from '@/lib/tempo'
 import { regrasDaAgenda, vendedoresPermitidos } from './config'
@@ -14,16 +14,17 @@ import { agendaDoDia } from './takeat-os'
 export interface OpcoesDeAgenda {
   /** Link direcionado: nome/slug ou e-mail do vendedor. */
   vendedor?: string | null
-  /** Faixa de faturamento do lead: decide quem pode recebê-lo (src/config/roteamento.ts). */
+  /** Respostas do lead (faturamento e mesas): decidem o segmento e quem pode recebê-lo. */
   faixa?: FaixaFaturamento | null
-  /** Sem faixa com o roteamento ligado: erro (padrão) ou a roleta geral. */
-  semFaixa?: 'erro' | 'roleta'
+  mesas?: FaixaMesas | null
+  /** Resposta faltando com o roteamento ligado: erro (padrão) ou a roleta geral. */
+  semResposta?: 'erro' | 'roleta'
   ignorar?: FiltroVendedores['ignorar']
 }
 
 /**
- * O filtro do dia. Sem link direcionado: os vendedores da faixa do lead (ou a roleta). Link
- * direcionado: só aquele vendedor, que precisa existir — o SDR escolheu, não passa pelo roteamento.
+ * O filtro do dia. Sem link direcionado: os vendedores do segmento do lead (src/config/roteamento.ts)
+ * ou a roleta. Link direcionado: só aquele vendedor, que precisa existir — quem mandou o link escolheu.
  */
 function filtroDoDia(
   agenda: AgendaDoDia,
@@ -31,12 +32,14 @@ function filtroDoDia(
 ): FiltroVendedores & { nome: string | null } {
   if (!opcoes.vendedor) {
     const permitidos = permitidosParaLead({
-      mapa: VENDEDORES_POR_FAIXA,
+      regra: SEGMENTO_POR_RESPOSTA,
+      vendedores: VENDEDORES_POR_SEGMENTO,
       roleta: vendedoresPermitidos(),
       faixa: opcoes.faixa,
-      semFaixa: opcoes.semFaixa,
+      mesas: opcoes.mesas,
+      semResposta: opcoes.semResposta,
     })
-    if (permitidos === 'faturamento_obrigatorio') throw new ErroAgenda('faturamento_obrigatorio', 400)
+    if (typeof permitidos === 'string') throw new ErroAgenda(permitidos, 400)
     return { permitidos, ignorar: opcoes.ignorar, nome: null }
   }
   const achado = resolverVendedor(agenda.pessoas, opcoes.vendedor)

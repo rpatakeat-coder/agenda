@@ -18,7 +18,7 @@ export const tituloDoConvite = (base: string, lead: Pick<DadosLead, 'empresa' | 
 
 export function descricaoDoConvite(
   lead: DadosLead,
-  opcoes: { vendedor: string; linkDeGestao?: string; faturamento?: string | null },
+  opcoes: { vendedor: string; linkDeGestao?: string; faturamento?: string | null; mesas?: string | null },
 ): string {
   const linhas = [
     `Olá, ${primeiroNome(lead.nome)}! Esta é a sua demonstração da Takeat com ${opcoes.vendedor}.`,
@@ -30,6 +30,7 @@ export function descricaoDoConvite(
     '—',
     `Restaurante: ${limpar(lead.empresa)}`,
     ...(opcoes.faturamento ? [`Faturamento mensal: ${opcoes.faturamento}`] : []),
+    ...(opcoes.mesas ? [`Mesas: ${opcoes.mesas}`] : []),
     `Contato: ${limpar(lead.nome)}`,
     `WhatsApp: ${lead.telefone}`,
     `E-mail: ${lead.email}`,

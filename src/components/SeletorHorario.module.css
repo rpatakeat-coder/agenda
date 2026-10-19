@@ -104,10 +104,13 @@
     transform 200ms var(--ease);
 }
 
-.horario:hover {
-  border-color: var(--brand-500);
-  background: var(--brand-sutil);
-  color: var(--brand-texto);
+/* Só com mouse: no celular o hover "gruda" depois do toque e parece uma opção já escolhida. */
+@media (hover: hover) {
+  .horario:hover {
+    border-color: var(--brand-500);
+    background: var(--brand-sutil);
+    color: var(--brand-texto);
+  }
 }
 
 .horario:active {

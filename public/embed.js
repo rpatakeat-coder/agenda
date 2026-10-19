@@ -9,12 +9,13 @@
  *   <button data-takeat-agenda-popup>Agendar demonstração</button>
  *
  * Atributos opcionais (nos dois): data-vendedor="caio-caiado", data-tema="claro|escuro",
- * data-faturamento="Entre 20 e 50 mil", data-name, data-email, data-phone, data-empresa, data-canal.
- * UTMs e lead_id da URL da página são repassados sozinhos.
+ * data-faturamento="Entre 20 e 50 mil", data-mesas="Até 10 mesas", data-name, data-email,
+ * data-phone, data-empresa, data-canal. UTMs e lead_id da URL da página são repassados sozinhos.
  *
  * Depois do formulário do site: passe as respostas como estão (firstname, email, phone,
- * nome_do_restaurante, faturamento_contato). A faixa de faturamento decide de quais vendedores é
- * a agenda, e o lead só escolhe o horário e confirma — sem digitar os dados de novo:
+ * nome_do_restaurante, faturamento_contato, quantidade_mesas). Faturamento e mesas decidem o
+ * segmento do lead e de quais vendedores é a agenda; o lead só escolhe o horário e confirma, sem
+ * digitar os dados de novo:
  *   TakeatAgenda.abrir(valoresDoFormulario)
  *
  * JavaScript: TakeatAgenda.abrir({ vendedor }) · TakeatAgenda.montar(elemento, { vendedor })
@@ -41,13 +42,16 @@
     'canal',
     'faturamento',
     'faturamento_contato',
+    'mesas',
+    'quantidade_mesas',
   ]
-  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal', 'faturamento']
+  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal', 'faturamento', 'mesas']
   // Nomes do formulário do site (propriedades do HubSpot) → nomes da agenda.
   const DO_FORMULARIO = {
     firstname: 'name',
     nome_do_restaurante: 'empresa',
     faturamento_contato: 'faturamento',
+    quantidade_mesas: 'mesas',
   }
   const ALTURA_INICIAL = 640
 
@@ -90,6 +94,7 @@
     empresa: el.dataset.empresa,
     canal: el.dataset.canal,
     faturamento: el.dataset.faturamento,
+    mesas: el.dataset.mesas,
   })
 
   // ─── Inline ───────────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // POST /api/agendamentos — cria a reunião com Google Meet na agenda do vendedor.
 // Header opcional `Idempotency-Key`: o mesmo valor devolve a mesma reunião (clique duplo).
-import { faixaDoFaturamento } from '@/lib/roteamento'
+import { faixaDeMesas, faixaDoFaturamento } from '@/lib/roteamento'
 import { agendamentoSchema } from '@/lib/schemas'
 import { agendar } from '@/lib/servidor/agendamento'
 import { urlPublica } from '@/lib/servidor/config'
@@ -25,8 +25,8 @@ export async function POST(pedido: Request): Promise<Response> {
 
   const lido = agendamentoSchema.safeParse(await lerJson(pedido))
   if (!lido.success) return respostaDeValidacao(lido.error)
-  const { site, inicio, vendedor, origem, faturamento, ...lead } = lido.data
-  const faixa = faixaDoFaturamento(faturamento)
+  const { site, inicio, vendedor, origem, faturamento, mesas, ...lead } = lido.data
+  const respostas = { faixa: faixaDoFaturamento(faturamento), mesas: faixaDeMesas(mesas) }
   // Honeypot preenchido: robô. Resposta genérica, sem dizer o porquê.
   if (site) return respostaErro('dados_invalidos', 400)
 
@@ -40,7 +40,7 @@ export async function POST(pedido: Request): Promise<Response> {
       )
         throw new ErroAgenda('muitas_tentativas', 429)
       return agendar(
-        { lead, inicio, vendedor, faixa, origem },
+        { lead, inicio, vendedor, respostas, origem },
         { baseUrl: urlPublica(new URL(pedido.url).origin) },
       )
     })

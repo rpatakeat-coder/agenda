@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import { Agendador } from '@/components/Agendador'
-import { faturamentoDaUrl, leadDaUrl, origemDaUrl, type ParametrosDaUrl } from '@/lib/parametros'
-import { faixaDoFaturamento } from '@/lib/roteamento'
+import { faturamentoDaUrl, leadDaUrl, mesasDaUrl, origemDaUrl, type ParametrosDaUrl } from '@/lib/parametros'
+import { faixaDeMesas, faixaDoFaturamento } from '@/lib/roteamento'
 import { regrasDaAgenda } from '@/lib/servidor/config'
 
 /**
  * Link direcionado: /caio-caiado (slug do nome) ou /caio@takeat.app. Quem mandou o link escolheu o
- * vendedor: não pergunta o faturamento (se vier na URL, só vai para o convite e o HubSpot).
+ * vendedor: não pergunta faturamento nem mesas (se vierem na URL, só vão para o convite e o HubSpot).
  */
 export default async function PaginaDoVendedor({
   params,
@@ -21,8 +21,11 @@ export default async function PaginaDoVendedor({
   return (
     <Agendador
       vendedor={vendedor}
-      faixa={faixaDoFaturamento(faturamentoDaUrl(busca))}
-      perguntarFaturamento={false}
+      respostas={{
+        faixa: faixaDoFaturamento(faturamentoDaUrl(busca)),
+        mesas: faixaDeMesas(mesasDaUrl(busca)),
+      }}
+      perguntar={{ faturamento: false, mesasPara: [] }}
       lead={leadDaUrl(busca)}
       origem={origemDaUrl(busca)}
       duracaoMin={regrasDaAgenda().duracaoMin}
