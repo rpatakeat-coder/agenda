@@ -1,0 +1,22 @@
+# Projeto: Agenda Site - Takeat (`rpatakeat-coder/agenda`)
+
+## Visão Geral
+Aplicação web oficial de agendamento online da **Takeat**.
+O objetivo principal é permitir que leads qualificados (vindos do WhatsApp, Nova IA SDR e canais de inbound) e clientes agendem reuniões e demonstrações com os consultores comerciais de forma rápida, intuitiva e autônoma, sincronizando com o Google Agenda e o Takeat OS.
+
+## Infraestrutura e Integrações
+- **Takeat OS:** Obtenção de vendedores ativos (`sellers`), controle de roleta e regras de agendamento.
+- **Google Agenda:** Criação automática de reuniões com link do Google Meet e convite direto para o lead e vendedor.
+- **HubSpot & WhatsApp (Nova IA SDR):** Recebimento de parâmetros via link e atualização de status da reunião.
+
+## Padrão Visual e UX
+- **Takeat Design System:** Cores oficiais (Brand Red `#C8131B`, Sucesso `#2EC9B7`, Alerta `#FFB32F`, Info `#01AFFF`), tema claro e escuro em neutros puros.
+- **Mobile First:** Interface ágil e amigável para smartphones, com botões táteis e etapas claras.
+- **Zero Atrito:** Pré-preenchimento automático de dados se passados na URL e feedback visual imediato.
+
+## Diretrizes para a IA (Gemini Rules)
+1. Mantenha sempre o contexto de que estamos construindo a aplicação pública de agendamento da Takeat.
+2. Segurança e privacidade: nunca exponha detalhes de eventos privados da agenda dos vendedores no cliente, apenas os slots livres/ocupados.
+3. Segredos de API (tokens Takeat OS / credenciais Google) devem ficar sempre no lado do servidor.
+4. Garanta TypeScript estrito, testes de cálculo de horários/fusos e validação com Zod.
+5. Toda comunicação e textos voltados ao usuário devem estar em Português do Brasil (pt-BR).
