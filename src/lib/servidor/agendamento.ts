@@ -10,6 +10,7 @@ import 'server-only'
 import { after } from 'next/server'
 import type { ReuniaoConfirmada, ReuniaoPublica } from '@/lib/contrato'
 import { descricaoDoConvite, tituloDoConvite } from '@/lib/convite'
+import { type FaixaFaturamento, rotuloDaFaixa } from '@/lib/roteamento'
 import { type DadosLead, MOTIVOS_CANCELAMENTO, type MotivoCancelamento, type Origem } from '@/lib/schemas'
 import { dataBrasilia } from '@/lib/tempo'
 import { regrasDaAgenda, segredo, tituloBase } from './config'
@@ -50,7 +51,12 @@ const leadDe = (dados: DadosReuniao): DadosLead => ({
   empresa: dados.l.r,
 })
 
-function dadosDaReuniao(r: RespostaEvento, emailVendedor: string, lead: DadosLead): DadosReuniao {
+function dadosDaReuniao(
+  r: RespostaEvento,
+  emailVendedor: string,
+  lead: DadosLead,
+  faixa: FaixaFaturamento | null,
+): DadosReuniao {
   return {
     g: r.evento.google_id,
     v: r.vendedor.email || emailVendedor,
@@ -58,25 +64,30 @@ function dadosDaReuniao(r: RespostaEvento, emailVendedor: string, lead: DadosLea
     i: r.evento.inicio,
     f: r.evento.fim,
     l: { n: lead.nome, e: lead.email, t: lead.telefone, r: lead.empresa },
+    fx: faixa,
   }
 }
 
 const confirmada = (
   dados: DadosReuniao,
-  evento: { titulo: string; linkMeet: string | null },
+  evento: { titulo: string; linkMeet: string | null; whatsapp?: string | null },
   gestaoUrl: string,
 ): ReuniaoConfirmada => ({
   titulo: evento.titulo,
   inicio: dados.i,
   fim: dados.f,
   linkMeet: evento.linkMeet,
-  vendedor: { nome: dados.vn, email: dados.v },
+  vendedor: { nome: dados.vn, email: dados.v, whatsapp: evento.whatsapp ?? null },
   emailLead: dados.l.e,
   gestaoUrl,
 })
 
 /** O que o webhook leva de uma reunião — com o owner do HubSpot do vendedor. */
-const paraWebhook = (r: RespostaEvento, lead: DadosLead, origem?: Origem) => ({
+const paraWebhook = (
+  r: RespostaEvento,
+  lead: DadosLead,
+  { origem, faixa }: { origem?: Origem; faixa?: FaixaFaturamento | null } = {},
+) => ({
   reuniao: {
     google_id: r.evento.google_id,
     titulo: r.evento.titulo ?? null,
@@ -86,6 +97,7 @@ const paraWebhook = (r: RespostaEvento, lead: DadosLead, origem?: Origem) => ({
   },
   vendedor: r.vendedor,
   lead,
+  faturamento: faixa ? { faixa, rotulo: rotuloDaFaixa(faixa) } : null,
   origem: origem ?? null,
 })
 
@@ -93,6 +105,9 @@ export interface PedidoDeReuniao {
   lead: DadosLead
   inicio: string
   vendedor?: string | null
+  /** Faixa de faturamento do lead (define quem pode recebê-lo). */
+  faixa?: FaixaFaturamento | null
+  semFaixa?: 'erro' | 'roleta'
   origem?: Origem
 }
 
@@ -107,7 +122,13 @@ export async function agendar(
   aviso: Aviso = { evento: 'reuniao.agendada' },
 ): Promise<ReuniaoConfirmada> {
   const regras = regrasDaAgenda()
-  const { slot, agenda, data } = await conferirHorario(pedido.inicio, { vendedor: pedido.vendedor })
+  const faixa = pedido.faixa ?? null
+  const faturamento = faixa && rotuloDaFaixa(faixa)
+  const { slot, agenda, data } = await conferirHorario(pedido.inicio, {
+    vendedor: pedido.vendedor,
+    faixa,
+    semFaixa: pedido.semFaixa,
+  })
   const titulo = tituloDoConvite(tituloBase(), pedido.lead)
   // Trava entre instâncias contra clique duplo: o OS já mostra na hora o evento criado pela rota.
   if (agenda.eventos.some((e) => e.titulo === titulo && Date.parse(e.inicio) === slot.inicioMs))
@@ -122,7 +143,7 @@ export async function agendar(
         inicio: slot.horario,
         duracao: regras.duracaoMin,
         convidados: [pedido.lead.email],
-        descricao: descricaoDoConvite(pedido.lead, vendedor.nome),
+        descricao: descricaoDoConvite(pedido.lead, { vendedor: vendedor.nome, faturamento }),
         vendedor: vendedor.email,
       })
     } catch (e) {
@@ -132,7 +153,7 @@ export async function agendar(
     }
 
     esquecerAgenda(data)
-    const dados = dadosDaReuniao(criado, vendedor.email, pedido.lead)
+    const dados = dadosDaReuniao(criado, vendedor.email, pedido.lead, faixa)
     const gestaoUrl = linkDeGestao(dados, ctx.baseUrl)
     after(() =>
       Promise.all([
@@ -140,11 +161,15 @@ export async function agendar(
         editarEvento({
           google_id: dados.g,
           vendedor: dados.v,
-          descricao: descricaoDoConvite(pedido.lead, dados.vn, gestaoUrl),
+          descricao: descricaoDoConvite(pedido.lead, {
+            vendedor: dados.vn,
+            linkDeGestao: gestaoUrl,
+            faturamento,
+          }),
           avisar_convidados: false,
         }).catch((e) => console.error('[agendar] link de gestão no convite:', mensagem(e))),
         avisarWebhook(aviso.evento, {
-          ...paraWebhook(criado, pedido.lead, pedido.origem),
+          ...paraWebhook(criado, pedido.lead, { origem: pedido.origem, faixa }),
           gestao_url: gestaoUrl,
           ...aviso.extra,
         }),
@@ -152,7 +177,11 @@ export async function agendar(
     )
     return confirmada(
       dados,
-      { titulo: criado.evento.titulo ?? titulo, linkMeet: criado.evento.link_meet ?? null },
+      {
+        titulo: criado.evento.titulo ?? titulo,
+        linkMeet: criado.evento.link_meet ?? null,
+        whatsapp: criado.vendedor.whatsapp,
+      },
       gestaoUrl,
     )
   }
@@ -207,11 +236,13 @@ export async function remarcar(
 
   if (pedido.transferir) {
     // Outro consultor (com a confirmação explícita do lead): primeiro garante a nova, depois
-    // cancela a antiga — o lead nunca fica sem reunião.
-    const nova = await agendar({ lead, inicio: pedido.inicio, origem: { canal: 'remarcacao' } }, ctx, {
-      evento: 'reuniao.remarcada',
-      extra: { transferida: true, de },
-    })
+    // cancela a antiga — o lead nunca fica sem reunião. Continua na faixa de faturamento do lead;
+    // reunião marcada pelo link direto de um vendedor (sem faixa) vai para a roleta.
+    const nova = await agendar(
+      { lead, inicio: pedido.inicio, faixa: dados.fx, semFaixa: 'roleta', origem: { canal: 'remarcacao' } },
+      ctx,
+      { evento: 'reuniao.remarcada', extra: { transferida: true, de } },
+    )
     try {
       await cancelarEvento({ google_id: dados.g, vendedor: dados.v, avisar_convidados: true })
       esquecerAgenda(dataBrasilia(Date.parse(atual.inicio)))
@@ -254,11 +285,19 @@ export async function remarcar(
   const novos: DadosReuniao = { ...dados, i: editado.evento.inicio, f: editado.evento.fim }
   const gestaoUrl = linkDeGestao(novos, ctx.baseUrl)
   after(() =>
-    avisarWebhook('reuniao.remarcada', { ...paraWebhook(editado, lead), de, gestao_url: gestaoUrl }),
+    avisarWebhook('reuniao.remarcada', {
+      ...paraWebhook(editado, lead, { faixa: dados.fx }),
+      de,
+      gestao_url: gestaoUrl,
+    }),
   )
   return confirmada(
     novos,
-    { titulo: editado.evento.titulo ?? atual.titulo, linkMeet: editado.evento.link_meet ?? atual.linkMeet },
+    {
+      titulo: editado.evento.titulo ?? atual.titulo,
+      linkMeet: editado.evento.link_meet ?? atual.linkMeet,
+      whatsapp: editado.vendedor.whatsapp,
+    },
     gestaoUrl,
   )
 }
@@ -283,7 +322,7 @@ export async function cancelar(
     const r = cancelado
     after(() =>
       avisarWebhook('reuniao.cancelada', {
-        ...paraWebhook(r, leadDe(dados)),
+        ...paraWebhook(r, leadDe(dados), { faixa: dados.fx }),
         motivo,
         motivo_texto: MOTIVOS_CANCELAMENTO[motivo],
         detalhe: detalhe || null,

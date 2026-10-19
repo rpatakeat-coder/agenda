@@ -9,8 +9,13 @@
  *   <button data-takeat-agenda-popup>Agendar demonstração</button>
  *
  * Atributos opcionais (nos dois): data-vendedor="caio-caiado", data-tema="claro|escuro",
- * data-name, data-email, data-phone, data-empresa, data-canal.
+ * data-faturamento="Entre 20 e 50 mil", data-name, data-email, data-phone, data-empresa, data-canal.
  * UTMs e lead_id da URL da página são repassados sozinhos.
+ *
+ * Depois do formulário do site: passe as respostas como estão (firstname, email, phone,
+ * nome_do_restaurante, faturamento_contato). A faixa de faturamento decide de quais vendedores é
+ * a agenda, e o lead só escolhe o horário e confirma — sem digitar os dados de novo:
+ *   TakeatAgenda.abrir(valoresDoFormulario)
  *
  * JavaScript: TakeatAgenda.abrir({ vendedor }) · TakeatAgenda.montar(elemento, { vendedor })
  * Conversão: window.addEventListener('takeat-agenda:agendado', (e) => e.detail.inicio)
@@ -34,11 +39,23 @@
     'phone',
     'empresa',
     'canal',
+    'faturamento',
+    'faturamento_contato',
   ]
-  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal']
+  const DO_ELEMENTO = ['tema', 'name', 'email', 'phone', 'empresa', 'canal', 'faturamento']
+  // Nomes do formulário do site (propriedades do HubSpot) → nomes da agenda.
+  const DO_FORMULARIO = {
+    firstname: 'name',
+    nome_do_restaurante: 'empresa',
+    faturamento_contato: 'faturamento',
+  }
   const ALTURA_INICIAL = 640
 
-  function montarUrl(opcoes) {
+  function montarUrl(recebidas) {
+    const opcoes = { ...recebidas }
+    for (const [doFormulario, daAgenda] of Object.entries(DO_FORMULARIO)) {
+      if (opcoes[doFormulario] && !opcoes[daAgenda]) opcoes[daAgenda] = opcoes[doFormulario]
+    }
     const caminho = opcoes.vendedor ? `/${encodeURIComponent(opcoes.vendedor)}` : '/'
     const url = new URL(caminho, ORIGEM)
     const daPagina = new URLSearchParams(location.search)
@@ -72,6 +89,7 @@
     phone: el.dataset.phone,
     empresa: el.dataset.empresa,
     canal: el.dataset.canal,
+    faturamento: el.dataset.faturamento,
   })
 
   // ─── Inline ───────────────────────────────────────────────────────────────────────────────────

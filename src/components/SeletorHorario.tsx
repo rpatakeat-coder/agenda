@@ -20,6 +20,8 @@ interface Props {
   ocultar?: string | null
   /** Ação extra quando não há horário (ex.: ver outro consultor). */
   vazio?: ReactNode
+  /** Linha logo abaixo do título (ex.: a faixa de faturamento escolhida). */
+  extra?: ReactNode
 }
 
 /** Passos 1 e 2: o dia no calendário e o horário na lista. */
@@ -32,6 +34,7 @@ export function SeletorHorario({
   aviso,
   ocultar,
   vazio,
+  extra,
 }: Props) {
   const [selecionada, setSelecionada] = useState<string | null>(null)
   const [mes, setMes] = useState<string | null>(null)
@@ -72,6 +75,7 @@ export function SeletorHorario({
         titulo="Sem horários livres nos próximos dias"
         texto="A agenda do time está cheia por enquanto. Tente de novo mais tarde."
       >
+        {extra}
         {vazio}
       </Estado>
     )
@@ -90,6 +94,7 @@ export function SeletorHorario({
   return (
     <div className={s.seletor}>
       <h2 className={s.titulo}>{titulo}</h2>
+      {extra}
       {aviso && (
         <div role="alert" className="alerta alerta-aviso entrar">
           <CircleAlert size={18} aria-hidden />

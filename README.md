@@ -21,10 +21,16 @@ navegador ──► /api/disponibilidade ──► Takeat OS: agenda-do-dia (1 p
 - **Roleta:** um horário aparece se pelo menos um vendedor estiver livre. Ao criar, o site confere a
   agenda fresca e tenta os vendedores livres em ordem (menos compromissos no dia primeiro), sempre
   com `vendedor` explícito. Se o OS recusa um (sem permissão de criar, ocupado), tenta o próximo.
+- **Roteamento por faturamento:** a resposta de faturamento do formulário define de quais vendedores
+  aparece a agenda (ver abaixo). A regra é aplicada no servidor: trocar a URL não abre a agenda de
+  outro vendedor.
 - **Link direcionado:** `/lucas-segatto` (slug do nome) ou `?vendedor=email@...` mostra só a agenda
-  daquela pessoa.
+  daquela pessoa (não passa pelo roteamento).
 - **Clique duplo:** a tela trava o botão e manda `Idempotency-Key`. O servidor devolve a mesma
   reunião para a mesma chave e recusa o mesmo lead no mesmo horário (`ja_agendado`).
+- **WhatsApp do vendedor:** a tela de confirmação mostra "Falar com {vendedor} no WhatsApp" e o
+  número, vindos do cadastro do Takeat OS (`users.whatsapp`, devolvido em `vendedor.whatsapp` pelas
+  rotas de criar/editar/cancelar). Vendedor sem número cadastrado: o botão não aparece.
 - **Remarcar/cancelar:** o convite e a tela de confirmação levam um link `/reuniao/<token>`
   (cifrado com AES-GCM, ninguém lê nem altera). Remarcar mantém o vendedor e o link do Meet. Se ele
   não tiver horário, o lead pode escolher outro consultor (com confirmação explícita): o site cria a
@@ -53,6 +59,40 @@ npm run build
 5. Recomendado: uma regra de rate limit no Firewall da Vercel para `POST /api/*` (o limite do código
    é por instância).
 
+## Roteamento por faturamento
+
+Quem atende cada faixa fica em [`src/config/roteamento.ts`](src/config/roteamento.ts). As faixas são
+as do campo `faturamento_contato` do formulário do takeat.app (a propriedade do HubSpot):
+
+| Faixa (rótulo do formulário) | id           |
+| ---------------------------- | ------------ |
+| Até 20 mil                   | `ate-20k`    |
+| Entre 20 e 50 mil            | `20k-50k`    |
+| Entre 50 e 100 mil           | `50k-100k`   |
+| Entre 100 e 200 mil          | `100k-200k`  |
+| Acima de 200 mil             | `acima-200k` |
+
+Cada faixa recebe uma lista de e-mails do Inside Sales (só eles aparecem para o lead) ou `'roleta'`
+(o time de `AGENDA_VENDEDORES`). Exemplo, com João até 50 mil e Luiza acima de 100 mil:
+
+```ts
+export const VENDEDORES_POR_FAIXA: VendedoresPorFaixa = {
+  'ate-20k': ['joao.takeat@gmail.com'],
+  '20k-50k': ['joao.takeat@gmail.com'],
+  '50k-100k': 'roleta',
+  '100k-200k': ['luiza.takeat@gmail.com'],
+  'acima-200k': ['luiza.takeat@gmail.com'],
+}
+```
+
+- Com pelo menos uma faixa preenchida, o roteamento liga e a agenda **só aparece com o faturamento
+  informado**: pelo formulário do site, pela URL (`?faturamento=Entre 20 e 50 mil`, `?faturamento=20k-50k`
+  ou o valor em reais, `?faturamento=45000`) ou por uma pergunta na própria página, antes do calendário.
+- Tudo em `'roleta'` = roteamento desligado (a página não pergunta o faturamento).
+- A faixa vai para o convite (o vendedor vê o faturamento), para o webhook e para o link de remarcar.
+  Se o lead trocar de consultor, a troca continua respeitando a faixa.
+- Mudou o arquivo → novo deploy.
+
 ## Colocar no takeat.app
 
 Inline (o `<iframe>` cresce sozinho com o conteúdo):
@@ -70,8 +110,27 @@ Popup (qualquer botão ou link da página):
 ```
 
 Atributos opcionais nos dois: `data-vendedor="lucas-segatto"`, `data-tema="claro|escuro"`,
-`data-name`, `data-email`, `data-phone`, `data-empresa`, `data-canal`. As UTMs e o `lead_id` da URL
-da página são repassados sozinhos. Também dá para usar `TakeatAgenda.abrir({ vendedor })` no JS.
+`data-faturamento`, `data-name`, `data-email`, `data-phone`, `data-empresa`, `data-canal`. As UTMs e
+o `lead_id` da URL da página são repassados sozinhos. Também dá para usar `TakeatAgenda.abrir({ vendedor })` no JS.
+
+### Depois do formulário de contato (agendamento direto)
+
+O formulário do takeat.app já coleta tudo (e envia ao HubSpot). A agenda aceita as respostas com os
+mesmos nomes de campo (`firstname`, `email`, `phone`, `nome_do_restaurante`, `faturamento_contato`):
+a faixa de faturamento decide de quais vendedores são os horários, e o lead **não digita nada de
+novo** — escolhe o horário e confirma com um clique.
+
+```tsx
+// app/layout.tsx do site
+<Script src="https://agenda.takeat.app/embed.js" strategy="afterInteractive" />
+
+// depois do envio do formulário (ex.: em /cadastro-confirmado, com as respostas guardadas)
+window.TakeatAgenda?.abrir(valoresDoFormulario)
+// ou dentro da página: TakeatAgenda.montar(document.getElementById('agenda'), valoresDoFormulario)
+```
+
+Sem JavaScript, o mesmo vale como link:
+`https://agenda.takeat.app/?firstname=…&email=…&phone=…&nome_do_restaurante=…&faturamento_contato=…`.
 
 Conversão (Google Ads, Meta…):
 
@@ -84,7 +143,7 @@ window.addEventListener('takeat-agenda:agendado', (e) => {
 ## Link para o WhatsApp (IA SDR)
 
 ```
-https://agenda.takeat.app/?name=Teresa&email=teresa@padaria.com&phone=11987654321&empresa=Padaria%20Central&lead_id=123&canal=whatsapp_sdr
+https://agenda.takeat.app/?name=Teresa&email=teresa@padaria.com&phone=11987654321&empresa=Padaria%20Central&faturamento=45000&lead_id=123&canal=whatsapp_sdr
 https://agenda.takeat.app/lucas-segatto?name=Teresa&phone=11987654321
 ```
 
@@ -99,8 +158,9 @@ Com `AGENDA_WEBHOOK_URL`, cada evento chega como `POST` JSON (header `x-webhook-
 {
   "evento": "reuniao.agendada | reuniao.remarcada | reuniao.cancelada",
   "reuniao": { "google_id": "…", "titulo": "…", "inicio": "…", "fim": "…", "link_meet": "…" },
-  "vendedor": { "id": "…", "nome": "…", "email": "…", "hubspot_owner_id": "…" },
+  "vendedor": { "id": "…", "nome": "…", "email": "…", "hubspot_owner_id": "…", "whatsapp": "+55…" },
   "lead": { "nome": "…", "email": "…", "telefone": "+55…", "empresa": "…" },
+  "faturamento": { "faixa": "20k-50k", "rotulo": "Entre 20 e 50 mil" },
   "origem": { "canal": "whatsapp_sdr", "lead_id": "…", "utm_source": "…" },
   "gestao_url": "https://agenda.takeat.app/reuniao/…",
   "motivo": "imprevisto", "motivo_texto": "Tive um imprevisto", "detalhe": "…"
@@ -120,6 +180,7 @@ Com `AGENDA_WEBHOOK_URL`, cada evento chega como `POST` JSON (header `x-webhook-
 ## Estrutura
 
 ```
+src/config/roteamento.ts    quem atende cada faixa de faturamento
 src/app/                    páginas (/, /[vendedor], /reuniao/[token]) e rotas /api
 src/components/             tela (calendário, horários, formulário, confirmação, gestão)
 src/lib/                    regras puras e testadas: slots, tempo, feriados, telefone, schemas (Zod)

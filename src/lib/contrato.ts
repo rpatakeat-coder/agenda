@@ -25,7 +25,8 @@ export interface ReuniaoConfirmada {
   inicio: string
   fim: string
   linkMeet: string | null
-  vendedor: { nome: string; email: string }
+  /** `whatsapp` em E.164, do cadastro do OS (null quando não há número cadastrado). */
+  vendedor: { nome: string; email: string; whatsapp: string | null }
   emailLead: string
   /** Página de remarcar/cancelar (o mesmo link vai no convite). */
   gestaoUrl: string
@@ -45,6 +46,7 @@ export interface ReuniaoPublica {
 
 export const MENSAGENS_DE_ERRO = {
   dados_invalidos: 'Confira os dados informados.',
+  faturamento_obrigatorio: 'Informe o faturamento mensal do restaurante para ver os horários.',
   horario_indisponivel: 'Esse horário acabou de ser preenchido. Escolha outro, por favor.',
   ja_agendado: 'Você já tem uma reunião marcada nesse horário. Confira o convite no seu e-mail.',
   vendedor_nao_encontrado: 'Não encontramos esse consultor. Confira o link que você recebeu.',

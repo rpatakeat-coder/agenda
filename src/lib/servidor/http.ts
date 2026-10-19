@@ -42,7 +42,12 @@ export function respostaDeValidacao(erro: z.ZodError): Response {
 export function respostaDeFalha(e: unknown, onde: string): Response {
   if (e instanceof ErroAgenda) return respostaErro(e.codigo, e.status)
   if (e instanceof ErroTakeatOS) {
-    console.error(`[${onde}]`, e.message)
+    // 401 é configuração, não instabilidade: diz qual token conferir.
+    const dica =
+      e.status === 401
+        ? ' — o OS recusou o token: confira AGENDA_DO_DIA_TOKEN (leitura) e AGENDA_EVENTOS_TOKEN (criar/editar/cancelar)'
+        : ''
+    console.error(`[${onde}]`, e.message + dica)
     return respostaErro('agenda_indisponivel', 503)
   }
   if (e instanceof ErroDeConfiguracao) console.error(`[${onde}] configuração:`, e.message)

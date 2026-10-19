@@ -51,6 +51,8 @@ const instante = z.iso.datetime({ offset: true, error: 'Horário inválido.' })
 export const agendamentoSchema = dadosLeadSchema.extend({
   inicio: instante,
   vendedor: z.string().trim().max(120).optional(),
+  /** Faixa do formulário ("Entre 20 e 50 mil"), id ("20k-50k") ou valor em reais. */
+  faturamento: z.string().trim().max(60).optional(),
   origem: origemSchema.optional(),
   /** Honeypot: campo escondido que só robô preenche. */
   site: z.string().max(500).optional(),

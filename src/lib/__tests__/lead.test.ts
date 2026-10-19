@@ -74,13 +74,18 @@ describe('convite', () => {
   })
 
   it('descrição sem marcação e com o link de gestão quando houver', () => {
-    const sem = descricaoDoConvite(lead, 'Lucas Segatto')
+    const sem = descricaoDoConvite(lead, { vendedor: 'Lucas Segatto' })
     expect(sem).not.toContain('<')
     expect(sem).toContain('Olá, Teresa!')
     expect(sem).not.toContain('remarcar')
-    expect(descricaoDoConvite(lead, 'Lucas', 'https://agenda.takeat.app/reuniao/x')).toContain(
-      'Precisa remarcar ou cancelar? https://agenda.takeat.app/reuniao/x',
-    )
+    expect(sem).not.toContain('Faturamento')
+    const com = descricaoDoConvite(lead, {
+      vendedor: 'Lucas',
+      linkDeGestao: 'https://agenda.takeat.app/reuniao/x',
+      faturamento: 'Entre 20 e 50 mil',
+    })
+    expect(com).toContain('Precisa remarcar ou cancelar? https://agenda.takeat.app/reuniao/x')
+    expect(com).toContain('Faturamento mensal: Entre 20 e 50 mil')
   })
 })
 

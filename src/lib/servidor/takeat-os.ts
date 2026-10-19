@@ -4,6 +4,7 @@ import 'server-only'
 
 import { z } from 'zod'
 import { type AgendaDoDia, agendaDoDiaSchema } from '@/lib/agenda'
+import { whatsappDoVendedor } from '@/lib/whatsapp'
 import { segredo, takeatOsUrl } from './config'
 
 const TIMEOUT_MS = 12_000
@@ -100,6 +101,11 @@ const vendedorSchema = z.object({
     .union([z.string(), z.number()])
     .nullish()
     .transform((v) => (v == null ? null : String(v))),
+  /** Do cadastro do OS, como foi digitado lá; normalizado em E.164 (null se não servir). */
+  whatsapp: z
+    .string()
+    .nullish()
+    .transform((v) => whatsappDoVendedor(v)),
 })
 
 const eventoSchema = z.object({

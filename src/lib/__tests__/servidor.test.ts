@@ -10,6 +10,7 @@ const dados: DadosReuniao = {
   i: '2026-10-21T09:30:00-03:00',
   f: '2026-10-21T10:00:00-03:00',
   l: { n: 'Teresa', e: 'teresa@padaria.com', t: '+5511987654321', r: 'Padaria Central' },
+  fx: '20k-50k',
 }
 
 describe('link de remarcar/cancelar', () => {

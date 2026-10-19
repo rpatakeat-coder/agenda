@@ -1,10 +1,22 @@
 'use client'
 
-import { CalendarDays, CalendarPlus, CircleCheck, Clock, Download, User, Video } from 'lucide-react'
+import {
+  CalendarDays,
+  CalendarPlus,
+  CircleCheck,
+  Clock,
+  Download,
+  MessageCircle,
+  User,
+  Video,
+} from 'lucide-react'
 import { useEffect } from 'react'
 import { linkGoogleAgenda } from '@/lib/calendario-externo'
 import type { ReuniaoConfirmada } from '@/lib/contrato'
-import { dataPorExtenso, faixaDeHorario, nomeDoFuso } from '@/lib/formatacao'
+import { primeiroNome } from '@/lib/convite'
+import { dataPorExtenso, faixaDeHorario, horaNoFuso, nomeDoFuso } from '@/lib/formatacao'
+import { FUSO_BRASILIA } from '@/lib/tempo'
+import { formatarWhatsapp, linkDoWhatsapp } from '@/lib/whatsapp'
 import s from './Confirmacao.module.css'
 import { avisarSite } from './PonteEmbed'
 
@@ -95,6 +107,14 @@ export function Confirmacao({ reuniao, fuso, titulo = 'Reunião confirmada!', ti
         fuso={fuso}
       />
 
+      {reuniao.vendedor.whatsapp && (
+        <FalarNoWhatsapp
+          whatsapp={reuniao.vendedor.whatsapp}
+          vendedor={reuniao.vendedor.nome}
+          inicio={reuniao.inicio}
+        />
+      )}
+
       <section className={s.secao} aria-labelledby="adicionar">
         <h3 id="adicionar" className={s.subtitulo}>
           Adicionar à sua agenda
@@ -127,5 +147,42 @@ export function Confirmacao({ reuniao, fuso, titulo = 'Reunião confirmada!', ti
         </a>
       </p>
     </div>
+  )
+}
+
+/**
+ * O WhatsApp do vendedor (do cadastro do Takeat OS), para o lead falar direto com ele. A conversa
+ * abre com a mensagem pronta, no horário de Brasília — o do vendedor.
+ */
+function FalarNoWhatsapp({
+  whatsapp,
+  vendedor,
+  inicio,
+}: {
+  whatsapp: string
+  vendedor: string
+  inicio: string
+}) {
+  const nome = primeiroNome(vendedor)
+  const mensagem =
+    `Olá, ${nome}! Agendei a demonstração da Takeat para ` +
+    `${dataPorExtenso(inicio, FUSO_BRASILIA)}, às ${horaNoFuso(inicio, FUSO_BRASILIA)}.`
+  return (
+    <section className={s.secao} aria-labelledby="whatsapp-vendedor">
+      <h3 id="whatsapp-vendedor" className={s.subtitulo}>
+        Fale direto com {nome}
+      </h3>
+      <a
+        href={linkDoWhatsapp(whatsapp, mensagem)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`botao botao-secundario ${s.whatsapp}`}
+      >
+        <MessageCircle size={18} aria-hidden /> Falar com {nome} no WhatsApp
+      </a>
+      <p className={s.dica}>
+        WhatsApp: <span className={s.numero}>{formatarWhatsapp(whatsapp)}</span>
+      </p>
+    </section>
   )
 }

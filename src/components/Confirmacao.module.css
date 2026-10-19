@@ -111,3 +111,14 @@
     transform: none;
   }
 }
+
+/* Ícone na cor do WhatsApp (marca de terceiro): o botão segue o secundário do Design System. */
+.whatsapp svg {
+  color: #25d366;
+}
+
+.numero {
+  color: var(--ink-900);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

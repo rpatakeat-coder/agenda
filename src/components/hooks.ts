@@ -10,8 +10,11 @@ export type EstadoDisponibilidade =
   | { status: 'erro'; mensagem: string }
   | { status: 'pronto'; dados: Disponibilidade }
 
-/** Horários livres de /api/disponibilidade. `recarregar` fura o cache da CDN (horário recém-ocupado). */
-export function useDisponibilidade(params: Record<string, string | null | undefined>) {
+/**
+ * Horários livres de /api/disponibilidade. `recarregar` fura o cache da CDN (horário recém-ocupado).
+ * Com `habilitado` falso não busca nada (ex.: ainda falta o lead dizer o faturamento).
+ */
+export function useDisponibilidade(params: Record<string, string | null | undefined>, habilitado = true) {
   const busca = new URLSearchParams(
     Object.entries(params).filter((par): par is [string, string] => Boolean(par[1])),
   ).toString()
@@ -19,6 +22,7 @@ export function useDisponibilidade(params: Record<string, string | null | undefi
   const [versao, setVersao] = useState(0)
 
   useEffect(() => {
+    if (!habilitado) return
     const controle = new AbortController()
     setEstado({ status: 'carregando' })
     const query = new URLSearchParams(busca)
@@ -33,7 +37,7 @@ export function useDisponibilidade(params: Record<string, string | null | undefi
           setEstado({ status: 'erro', mensagem: MENSAGENS_DE_ERRO.agenda_indisponivel })
       })
     return () => controle.abort()
-  }, [busca, versao])
+  }, [busca, versao, habilitado])
 
   const recarregar = useCallback(() => setVersao((v) => v + 1), [])
   return { estado, recarregar }

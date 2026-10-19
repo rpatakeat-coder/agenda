@@ -5,6 +5,7 @@ import 'server-only'
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
+import { IDS_DE_FAIXA } from '@/lib/roteamento'
 
 const dadosSchema = z.object({
   /** google_id do evento. */
@@ -17,6 +18,8 @@ const dadosSchema = z.object({
   f: z.string(),
   /** Lead: nome, e-mail, WhatsApp, restaurante — para transferir de consultor sem pedir de novo. */
   l: z.object({ n: z.string(), e: z.string(), t: z.string(), r: z.string() }),
+  /** Faixa de faturamento: a transferência continua respeitando o roteamento. */
+  fx: z.enum(IDS_DE_FAIXA).nullable(),
 })
 
 export type DadosReuniao = z.infer<typeof dadosSchema>
